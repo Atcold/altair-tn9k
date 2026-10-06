@@ -3,6 +3,7 @@ build/
 *.vcd
 *.fst
 digital/74hc595-74hc165-tests.txt
+*.pdf
 
 # KiCad
 *-backups/

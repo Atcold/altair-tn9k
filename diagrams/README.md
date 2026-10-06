@@ -4,15 +4,13 @@ Schematic drawings of the front panel and of the two shift-register chips, made 
 
 ## Files
 
-| File | Contents |
-|---|---|
-| `schematics.ipynb` | Shows every sheet, one per cell, in the dark theme, in build order |
-| `chips.py` | 74HC595 and 74HC165 at flip-flop level, their function tables and pinouts: build them in Digital first |
-| `first_byte.py` | First breadboard, one byte each way on both backends sharing one DIP switch: schematic, FPGA pins, parts and test |
-| `panel_sr.py` | Panel sheets, shift-register backend: block diagram, carrier and connector, LED chain, switch chain, bit maps |
-| `panel_mcp.py` | Panel sheets, SPI-expander backend: block diagram, carrier and connector, output expander, input expander, bit maps and start-up writes |
-| `schematic.py` | Shared helpers: A3 page and title block, net tags, IC and flip-flop shapes, tables, themes, PDF output |
-| `build_pdfs.py` | Writes the PDFs: light theme by default, dark or black and white on request |
+- `schematics.ipynb`: shows every sheet, one per cell, in the dark theme, in build order.
+- `chips.py`: the 74HC595 and 74HC165 at flip-flop level, with their function tables and pinouts. Build them in Digital first.
+- `first_byte.py`: the first breadboard, one byte each way on both backends sharing one DIP switch: schematic, FPGA pins, parts and test.
+- `panel_sr.py`: panel sheets for the shift-register backend: block diagram, carrier and connector, LED chain, switch chain, bit maps.
+- `panel_mcp.py`: panel sheets for the SPI-expander backend: block diagram, carrier and connector, output expander, input expander, bit maps and start-up writes.
+- `schematic.py`: shared helpers: A3 page and title block, net tags, IC and flip-flop shapes, tables, themes, PDF output.
+- `build_pdfs.py`: writes the PDFs, in the light theme by default, dark or black and white on request.
 
 ## Editing
 
