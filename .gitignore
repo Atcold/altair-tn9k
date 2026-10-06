@@ -1,0 +1,21 @@
+# Build output
+build/
+*.vcd
+*.fst
+
+# KiCad
+*-backups/
+*.kicad_prl
+*.lck
+fp-info-cache
+_autosave-*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Gowin EDA
+ide/**/impl/
+ide/**/*.gprj.user
+
+# macOS
+.DS_Store
