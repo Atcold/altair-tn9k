@@ -1,0 +1,13 @@
+[project]
+name = "altair-tn9k"
+version = "0.1.0"
+description = "Altair 8800 front-panel replica on a Tang Nano 9K: schematic notebooks and tooling"
+requires-python = ">=3.11"
+dependencies = [
+    "jupyterlab",
+    "matplotlib",
+    "schemdraw",
+]
+
+[tool.uv]
+package = false

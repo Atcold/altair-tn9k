@@ -2,6 +2,7 @@
 build/
 *.vcd
 *.fst
+digital/74hc595-74hc165-tests.txt
 
 # KiCad
 *-backups/
@@ -9,6 +10,10 @@ build/
 *.lck
 fp-info-cache
 _autosave-*
+
+# Python
+.venv/
+__pycache__/
 
 # Jupyter
 .ipynb_checkpoints/

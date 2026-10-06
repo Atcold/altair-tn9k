@@ -35,13 +35,12 @@ ide/          Gowin EDA project
 Makefile      open-source flow (Yosys, nextpnr-himbaechel, Apicula, openFPGALoader)
 ```
 
-## Notebooks
+## Setup
 
-Notebooks in `diagrams/` are committed without outputs: `.gitattributes` routes `*.ipynb` through `nbstripout`. Each notebook saves its figures as SVG in `docs/`, which is where the rendered diagrams live in git.
-
-The filter itself is local git config, so run this once after cloning:
+Run once after cloning:
 
 ```sh
+uv sync
 uv tool install nbstripout
 nbstripout --install --attributes .gitattributes
 ```
