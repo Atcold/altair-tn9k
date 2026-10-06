@@ -8,9 +8,10 @@ import schemdraw
 import schemdraw.elements as elm
 
 from schematic import (FS, T, fill, page, canvas, finish, notes, table,
-                       ic, tag, netlabel, toggle, supply, nc)
+                       ic, tag, netlabel, toggle, supply, nc, VDD, GND, LED, to_gnd, ground_bus)
 
 N = 5  # sheets in this set
+KC = (0.15, 0.9, 0.55)  # carrier-sheet tags: that drawing is large on the page, so a lower tag suffices
 
 
 # ================================================================ sheet 1
@@ -58,7 +59,7 @@ def sheet_block():
               "INTE PROT\nWAIT HLDA\n(+4 spare)"]
     for i, (x, g) in enumerate(zip(xs, groups)):
         box(x, 42, 6.5, 6, f"U{i+1}\n74HC595", fc="#eaf7ea", fs=9)
-        ax.add_patch(plt.Circle((x + 3.25, 39.6), 0.6, fc="#ff5050", ec=T.FG, lw=0.6))
+        ax.add_patch(plt.Circle((x + 3.25, 39.6), 0.6, fc=T.LED, ec=T.FG, lw=0.6))
         ax.text(x + 3.25, 38.2, g, ha="center", va="top", fontsize=7.5)
     for a, b in zip(xs[:-1], xs[1:]):
         arrow(a + 6.8, 45, b - 0.3, 45, "QH'→SER", (((a + 6.8) + b) / 2, 46.2), fs=6.5)
@@ -101,15 +102,15 @@ def sheet_carrier():
                        ("SW_QH", "IO f", "qh"), ("SPARE1", "IO g", "sp1"), ("SPARE2", "IO h", "sp2"),
                        ("GND", "GND", "G")],
                   None, None, (6, 12), "Tang Nano 9K  (on female headers)", loc="top"))
-    d.add(elm.Line().at(tn.V33).right(1)); d.add(elm.Line().up(0.5)); d.add(elm.Vdd().label("3V3"))
+    d.add(elm.Line().at(tn.V33).right(1)); d.add(elm.Line().up(0.5)); d.add(VDD().label("3V3"))
     for a, net, r in [("ser", "LED_SER", "R1"), ("srclk", "LED_SRCLK", "R2"), ("rclk", "LED_RCLK", "R3"),
                       ("load", "SW_LOAD", "R4"), ("clk", "SW_CLK", "R5")]:
         d.add(elm.Line().at(getattr(tn, a)).right(1))
         d.add(elm.Resistor().right().length(3).label(f"{r}  33 Ω", fontsize=FS - 1))
-        d.add(elm.Line().right(0.5)); tag(d, net)
+        d.add(elm.Line().right(0.5)); tag(d, net, k=KC)
     for a, net in [("qh", "SW_QH"), ("sp1", "SPARE1"), ("sp2", "SPARE2")]:
-        d.add(elm.Line().at(getattr(tn, a)).right(4.5)); tag(d, net)
-    d.add(elm.Line().at(tn.G).right(1)); d.add(elm.Ground())
+        d.add(elm.Line().at(getattr(tn, a)).right(4.5)); tag(d, net, k=KC)
+    to_gnd(d, tn.G, ("right", 1))
     finish(d, ax)
 
     ax2 = canvas(fig, [0.55, 0.36, 0.20, 0.55])
@@ -123,13 +124,13 @@ def sheet_carrier():
 
     ax3 = canvas(fig, [0.78, 0.55, 0.19, 0.30])
     d = schemdraw.Drawing(canvas=ax3, show=False)
-    d.add(elm.Vdd().label("3V3"))
+    d.add(VDD().label("3V3"))
     top = d.add(elm.Line().down(0.6))
     d.add(elm.Capacitor().down().label("C1\n10 µF", loc="bottom"))
-    d.add(elm.Ground())
+    d.add(GND())
     d.add(elm.Line().at(top.end).right(2.5))
     d.add(elm.Capacitor().down().label("C2\n100 nF", loc="bottom"))
-    d.add(elm.Ground())
+    d.add(GND())
     finish(d, ax3)
     fr.text(0.875, 0.53, "Bulk + HF decoupling at J1\n(and C3/C4, same values, at J2)",
             ha="center", va="top", fontsize=9)
@@ -154,26 +155,22 @@ def sheet_leds():
             ("QF", "5", "QF"), ("QG", "6", "QG"), ("QH", "7", "QH"), ("QH'", "9", "QHS")]
     u = d.add(ic([("SER", "14", "SER"), ("SRCLK", "11", "SRCLK"), ("RCLK", "12", "RCLK"),
                   ("MR", "10", "MR", True), ("OE", "13", "OE", True)],
-                 outs, ("VCC", "16"), ("GND", "8"), (4.5, 14), "U1\n74HC595"))
+                 outs, ("VCC", "16"), ("GND", "8"), (4.5, 14), "U1\n74HC595", lpad=0.12))
     netlabel(d, u.SER, "LED_SER (J2-3)", length=1.0)
     netlabel(d, u.SRCLK, "LED_SRCLK (J2-4)", length=1.0)
     netlabel(d, u.RCLK, "LED_RCLK (J2-6)", length=1.0)
-    d.add(elm.Line().at(u.MR).left(1.2)); d.add(elm.Line().up(0.6)); d.add(elm.Vdd().label("3V3"))
-    d.add(elm.Line().at(u.OE).left(1.2)); d.add(elm.Line().down(0.6)); d.add(elm.Ground())
-    d.add(elm.Line().at(u.GND).down(0.4)); d.add(elm.Ground())
+    d.add(elm.Line().at(u.MR).left(1.2)); d.add(elm.Line().up(0.6)); d.add(VDD().label("3V3"))
+    to_gnd(d, u.OE, ("left", 1.2), ("down", 0.6))
+    to_gnd(d, u.GND, ("down", 0.4))
     supply(d, u.VCC)
     names = ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"]
     ends = []
     for k, (n, num, a) in enumerate(outs[:-1]):
         d.add(elm.Line().at(getattr(u, a)).right(0.8))
         d.add(elm.Resistor().right().length(2.8).label(f"R{11+k}  1 kΩ", fontsize=FS - 1))
-        led = d.add(elm.LED().right().length(2.6).label(f"LED{1+k}  {names[k]}", fontsize=FS - 1))
+        led = d.add(LED().right().length(2.6).label(f"LED{1+k}  {names[k]}", fontsize=FS - 1))
         ends.append(led.end)
-    d.add(elm.Line().at(ends[0]).right(0.8))
-    bus = d.add(elm.Line().down(ends[0].y - ends[-1].y))
-    for e in ends[1:]:
-        d.add(elm.Line().at(e).right(0.8)); d.add(elm.Dot().at((e.x + 0.8, e.y)))
-    d.add(elm.Line().at(bus.end).down(0.5)); d.add(elm.Ground())
+    ground_bus(d, ends)
     netlabel(d, u.QHS, "to U2 SER (pin 14)", direction="right", length=6.6)
     finish(d, ax)
 
@@ -210,30 +207,35 @@ def sheet_switches():
     ins = [("A", "11", "A"), ("B", "12", "B"), ("C", "13", "C"), ("D", "14", "D"), ("E", "3", "E"),
            ("F", "4", "F"), ("G", "5", "G"), ("H", "6", "H"), ("QH", "9", "QH"), ("/QH", "7", "QHN", True)]
     u = d.add(ic([("SH/LD", "1", "LD", True), ("CLK", "2", "CLK"), ("CLK INH", "15", "INH"), ("SER", "10", "SER")],
-                 ins, ("VCC", "16"), ("GND", "8"), (4.5, 16), "U6\n74HC165"))
+                 ins, ("VCC", "16"), ("GND", "8"), (6, 16), "U6\n74HC165", lpad=0.12))
     netlabel(d, u.LD, "SW_LOAD (J2-7)", length=1.0)
     netlabel(d, u.CLK, "SW_CLK (J2-9)", length=1.0)
-    d.add(elm.Line().at(u.INH).left(1.2)); d.add(elm.Line().down(0.4)); d.add(elm.Ground())
+    to_gnd(d, u.INH, ("left", 1.2), ("down", 0.4))
     netlabel(d, u.SER, "from U7 QH (pin 9)", length=1.0)
-    d.add(elm.Line().at(u.GND).down(0.4)); d.add(elm.Ground())
+    to_gnd(d, u.GND, ("down", 0.4))
     supply(d, u.VCC)
-    ends = []
     for k, (n, num, a, *_) in enumerate(ins[:8]):
-        p = getattr(u, a)
-        d.add(elm.Line().at(p).right(1.6))
+        netlabel(d, getattr(u, a), f"SA{k}", direction="right", length=1.0)
+
+    # toggles SA0-SA7 with their pull-ups, beside the chip, as on the first-byte sheet:
+    # 3V3 rail on the left, each line SAk = node between its resistor and its switch, GND rail on the right
+    S = T.SUPPLY
+    x0, y0, dy = u.A.x + 8.0, u.A.y, 3.0
+    ends = []
+    for k in range(8):
+        y = y0 - k * dy
+        d.add(elm.Resistor().at((x0, y)).right().length(3.0).label("10 kΩ", fontsize=FS - 1))
         node = d.add(elm.Dot())
-        d.add(elm.Resistor().at(node.center).up().length(1.05).scale(0.7)
-              .label(f"RN1-{k+2}", loc="bottom", fontsize=FS - 2))
-        d.add(elm.Dot(open=True).label("3V3", "right", fontsize=FS - 2))
-        sw = d.add(elm.Switch().at(node.center).right().length(2.6)
-                   .label(f"SA{k}", fontsize=FS - 1, loc="bottom"))
-        ends.append(sw.end)
-    d.add(elm.Line().at(ends[0]).right(0.8))
-    bus = d.add(elm.Line().down(ends[0].y - ends[-1].y))
-    for e in ends[1:]:
-        d.add(elm.Line().at(e).right(0.8)); d.add(elm.Dot().at((e.x + 0.8, e.y)))
-    d.add(elm.Line().at(bus.end).down(0.5)); d.add(elm.Ground())
-    netlabel(d, u.QH, "SW_QH (J2-10)", direction="right", length=6.2)
+        d.add(elm.Line().at(node.center).down(0.6))
+        tag(d, f"SA{k}", "down")
+        ends.append(d.add(elm.Switch().at(node.center).right().length(3.4)
+                          .label(f"SA{k}", fontsize=FS - 1)).end)
+        if k < 7:
+            d.add(elm.Line().at((x0, y)).to((x0, y - dy)).color(S))
+            d.add(elm.Dot().at((x0, y)).color(S))
+    d.add(elm.Line().at((x0, y0)).up(0.8).color(S)); d.add(VDD().label("3V3"))
+    ground_bus(d, ends)
+    netlabel(d, u.QH, "SW_QH (J2-10)", direction="right", length=1.0)
     nc(d, u.QHN)
     finish(d, ax)
 
@@ -243,7 +245,7 @@ def sheet_switches():
     sw = d.add(elm.SwitchSpdt2().right().scale(1.8))
     d.add(elm.Label().at((sw.a.x - 1.6, sw.a.y + 1.2))
           .label("S17  STOP/RUN\nmomentary (ON)-OFF-(ON)", fontsize=FS - 1))
-    d.add(elm.Line().at(sw.a).left(0.6)); d.add(elm.Line().down(1.6)); d.add(elm.Ground())
+    to_gnd(d, sw.a, ("left", 0.6), ("down", 1.6))
     d.add(elm.Line().at(sw.b).up(0.6)); d.add(elm.Line().right(2.2)); tag(d, "U8 A  (STOP)")
     d.add(elm.Line().at(sw.c).down(0.6)); d.add(elm.Line().right(2.2)); tag(d, "U9 A  (RUN)")
     finish(d, ax2)
@@ -278,7 +280,7 @@ def sheet_switches():
 
 # ================================================================ sheet 5
 def sheet_maps():
-    fig, fr = page(5, N, "Bit maps and breadboard subsets", "Bit maps, breadboard")
+    fig, fr = page(5, N, "Bit maps", "Bit maps")
     led_rows = [
         ["U1", "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"],
         ["U2", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"],
@@ -295,21 +297,12 @@ def sheet_maps():
     table(fig, [0.52, 0.62, 0.45, 0.28], "Switch map  (sw[n]: n = 8 × chip index + input, U6 = 0)",
           ["Chip", "A", "B", "C", "D", "E", "F", "G", "H"], sw_rows, [0.1] + [0.1125] * 8)
 
-    bb_rows = [
-        ["Stage 1", "U1 + LED1–LED8 + R11–R18", "LED_SER, LED_SRCLK, LED_RCLK", "Binary counter on 8 LEDs"],
-        ["Stage 2", "+ U6 + RN1 + 8-way DIP switch", "+ SW_LOAD, SW_CLK, SW_QH", "DIP switches mirrored on LEDs"],
-        ["Stage 3", "+ U2 (8 LEDs) + U7 + RN2 + 2nd DIP", "same six signals", "16 bits each way, PWM brightness"],
-    ]
-    table(fig, [0.03, 0.36, 0.94, 0.19],
-          "Breadboard subsets  (same schematic, fewer chips; no J1/J2, wire FPGA pins directly)",
-          ["", "Parts added", "FPGA signals used", "Goal"], bb_rows, [0.08, 0.32, 0.30, 0.30], fs=10)
-
-    notes(fr, 0.03, 0.31, [
-        "Breadboard rules:",
-        "•  Rails from the Tang Nano 3V3 and GND pins only. 100 nF across pins 16/8 of every chip.",
-        "•  Unused 74HC165 inputs on a partial chain still need pull-ups (the resistor network does it).",
-        "•  On a chain that stops early, tie the last 74HC165's SER (10) to GND; leave the last 74HC595's QH' open.",
-        "•  Keep the clock wires short; clip the logic analyser on LED_SRCLK, LED_RCLK, SW_CLK, SW_LOAD.",
+    notes(fr, 0.03, 0.55, [
+        "The first breadboard (one byte each way) is drawn separately, in first_byte.py.",
+        "",
+        "Partial chains, e.g. two 595s and two 165s for 16 bits each way:",
+        "•  tie the last 74HC165's SER (10) to GND, and leave the last 74HC595's QH' open;",
+        "•  unused 74HC165 inputs still need pull-ups (the resistor network does it).",
         "",
         "Open items before the PCB: choose FPGA pins (3.3 V banks) and record them in the .cst; confirm LED resistor value by eye;",
         "pick the toggle part numbers and pitch, which set the panel width; decide the panel size (original ≈ 43 cm, scaled ≈ 25–30 cm).",

@@ -19,7 +19,7 @@ Select one at build time with `make PANEL=sr` or `make PANEL=mcp`.
 
 ```
 rtl/          vendor-neutral Verilog
-  panel/      panel_io_sr.v, panel_io_mcp.v, spi_master.v, debounce.v, pwm.v
+  panel/      panel_io_sr.v, panel_io_mcp.v, spi_master.v, debounce.v
   cpu/        8080 core
   altair/     memory map, 88-SIO, panel state machine
 gowin/        Gowin primitives: PLL, PSRAM wrappers

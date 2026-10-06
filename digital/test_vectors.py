@@ -1,10 +1,5 @@
-"""Test vectors for the 74HC595 and 74HC165 Digital circuits.
-
-Generated from a behavioural model of each chip. Paste each block into a Test
-component in the matching circuit (74HC595.dig, 74HC165.dig).
-
-    uv run python digital/test_vectors.py   # writes digital/74hc595-74hc165-tests.txt
-"""
+#!/usr/bin/env -S uv run
+"""Test vectors for the 74HC595 and 74HC165 Digital circuits, from a behavioural model of each chip."""
 from pathlib import Path
 
 

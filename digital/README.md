@@ -17,7 +17,7 @@ Circuits for [Digital](https://github.com/hneemann/Digital), Helmut Neemann's lo
 ## Test vectors
 
 ```sh
-uv run python digital/test_vectors.py   # writes digital/74hc595-74hc165-tests.txt
+./test_vectors.py   # writes 74hc595-74hc165-tests.txt
 ```
 
 They come from a behavioural model of each chip in `test_vectors.py`, not from the datasheets directly, so if a test fails, check the vector as well as the circuit.

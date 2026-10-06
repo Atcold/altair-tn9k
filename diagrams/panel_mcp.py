@@ -10,9 +10,10 @@ import schemdraw
 import schemdraw.elements as elm
 
 from schematic import (FS, T, fill, page, canvas, finish, notes, table,
-                       ic, tag, netlabel, toggle, supply, nc)
+                       ic, tag, netlabel, toggle, supply, nc, VDD, GND, LED, to_gnd, ground_bus)
 
 N = 5  # sheets in this set
+KC = (0.15, 0.9, 0.55)  # carrier-sheet tags: that drawing is large on the page, so a lower tag suffices
 
 # MCP23S17, SPDIP-28. Left pins top to bottom, right pins top to bottom.
 MCP_LEFT = [("CS", "11", "CS", True), ("SCK", "12", "SCK"), ("SI", "13", "SI"), ("SO", "14", "SO"),
@@ -28,7 +29,7 @@ CHIPS = {"U1": ("000", "LEDs A0–A15"), "U2": ("001", "LEDs D0–D7, MEMR INP M
 
 
 def mcp(d, ref):
-    return d.add(ic(MCP_LEFT, MCP_RIGHT, ("VDD", "9"), ("VSS", "10"), (7, 24), f"{ref}\nMCP23S17"))
+    return d.add(ic(MCP_LEFT, MCP_RIGHT, ("VDD", "9"), ("VSS", "10"), (7, 24), f"{ref}\nMCP23S17", lpad=0.12))
 
 
 TK = (0.2, 1.0)  # tag sizing: the 16-row chips shrink the drawing, so tags need more room
@@ -42,20 +43,15 @@ def bus_and_power(d, u, address):
     netlabel(d, u.SO, "SPI_MISO (J2-6)", length=1.0, k=TK)
     netlabel(d, u.RST, "RESET_n (R9 to 3V3)", length=1.0, k=TK)
     for pin, bit in zip(("A2", "A1", "A0"), address):
-        d.add(elm.Line().at(getattr(u, pin)).left(1.2))
-        d.add(elm.Vdd().label("3V3", fontsize=FS - 1) if bit == "1" else elm.Ground())
-    nc(d, u.INTA)
-    nc(d, u.INTB)
-    d.add(elm.Line().at(u.VSS).down(0.4)); d.add(elm.Ground())
+        if bit == "1":
+            d.add(elm.Line().at(getattr(u, pin)).left(1.2).color(T.SUPPLY))
+            d.add(VDD().label("3V3", fontsize=FS - 1))
+        else:
+            to_gnd(d, getattr(u, pin), ("left", 1.2))
+    nc(d, u.INTA, "left")
+    nc(d, u.INTB, "left")
+    to_gnd(d, u.VSS, ("down", 0.4))
     supply(d, u.VDD)
-
-
-def ground_bus(d, ends, dx=0.8):
-    d.add(elm.Line().at(ends[0]).right(dx))
-    bus = d.add(elm.Line().down(ends[0].y - ends[-1].y))
-    for e in ends[1:]:
-        d.add(elm.Line().at(e).right(dx)); d.add(elm.Dot().at((e.x + dx, e.y)))
-    d.add(elm.Line().at(bus.end).down(0.5)); d.add(elm.Ground())
 
 
 # ================================================================ sheet 1
@@ -116,7 +112,7 @@ def sheet_block():
     for i, (ref, addr, g) in enumerate(outs):
         x = 57 + 13 * i
         box(x, 42, 10, 6, f"{ref}  MCP23S17\naddress {addr}", fc="#eaf7ea", fs=9)
-        ax.add_patch(plt.Circle((x + 5, 39.6), 0.6, fc="#ff5050", ec=T.FG, lw=0.6))
+        ax.add_patch(plt.Circle((x + 5, 39.6), 0.6, fc=T.LED, ec=T.FG, lw=0.6))
         ax.text(x + 5, 38.2, g, ha="center", va="top", fontsize=7.5)
 
     ax.text(57, 26.5, "Inputs: 2 × MCP23S17, 32 switch contacts", fontsize=10, weight="bold")
@@ -150,15 +146,15 @@ def sheet_carrier():
                        ("SPARE1", "IO e", "sp1"), ("SPARE2", "IO f", "sp2"),
                        ("SPARE3", "IO g", "sp3"), ("SPARE4", "IO h", "sp4"), ("GND", "GND", "G")],
                   None, None, (6, 12), "Tang Nano 9K  (on female headers)", loc="top"))
-    d.add(elm.Line().at(tn.V33).right(1)); d.add(elm.Line().up(0.5)); d.add(elm.Vdd().label("3V3"))
+    d.add(elm.Line().at(tn.V33).right(1)); d.add(elm.Line().up(0.5)); d.add(VDD().label("3V3"))
     for a, net, r in [("sck", "SPI_SCK", "R1"), ("mosi", "SPI_MOSI", "R2"), ("cs", "SPI_CS_n", "R3")]:
         d.add(elm.Line().at(getattr(tn, a)).right(1))
         d.add(elm.Resistor().right().length(3).label(f"{r}  33 Ω", fontsize=FS - 1))
-        d.add(elm.Line().right(0.5)); tag(d, net)
+        d.add(elm.Line().right(0.5)); tag(d, net, k=KC)
     for a, net in [("miso", "SPI_MISO"), ("sp1", "SPARE1"), ("sp2", "SPARE2"),
                    ("sp3", "SPARE3"), ("sp4", "SPARE4")]:
-        d.add(elm.Line().at(getattr(tn, a)).right(4.5)); tag(d, net)
-    d.add(elm.Line().at(tn.G).right(1)); d.add(elm.Ground())
+        d.add(elm.Line().at(getattr(tn, a)).right(4.5)); tag(d, net, k=KC)
+    to_gnd(d, tn.G, ("right", 1))
     finish(d, ax)
 
     ax2 = canvas(fig, [0.55, 0.36, 0.20, 0.55])
@@ -172,13 +168,13 @@ def sheet_carrier():
 
     ax3 = canvas(fig, [0.78, 0.55, 0.19, 0.30])
     d = schemdraw.Drawing(canvas=ax3, show=False)
-    d.add(elm.Vdd().label("3V3"))
+    d.add(VDD().label("3V3"))
     top = d.add(elm.Line().down(0.6))
     d.add(elm.Capacitor().down().label("C1\n10 µF", loc="bottom"))
-    d.add(elm.Ground())
+    d.add(GND())
     d.add(elm.Line().at(top.end).right(2.5))
     d.add(elm.Capacitor().down().label("C2\n100 nF", loc="bottom"))
-    d.add(elm.Ground())
+    d.add(GND())
     finish(d, ax3)
     fr.text(0.875, 0.53, "Bulk + HF decoupling at J1\n(and C3/C4, same values, at J2)",
             ha="center", va="top", fontsize=9)
@@ -207,7 +203,7 @@ def sheet_outputs():
         a = f"GPA{k}" if k < 8 else f"GPB{k - 8}"
         d.add(elm.Line().at(getattr(u, a)).right(0.8))
         d.add(elm.Resistor().right().length(2.8).label(f"R{11 + k}  1 kΩ", fontsize=FS - 1))
-        led = d.add(elm.LED().right().length(2.6).label(f"LED{1 + k}  A{k}", fontsize=FS - 1))
+        led = d.add(LED().right().length(2.6).label(f"LED{1 + k}  A{k}", fontsize=FS - 1))
         ends.append(led.end)
     ground_bus(d, ends)
     finish(d, ax)
@@ -258,7 +254,7 @@ def sheet_inputs():
     sw = d.add(elm.SwitchSpdt2().right().scale(1.8))
     d.add(elm.Label().at((sw.a.x - 1.6, sw.a.y + 1.2))
           .label("S17  STOP/RUN\nmomentary (ON)-OFF-(ON)", fontsize=FS - 1))
-    d.add(elm.Line().at(sw.a).left(0.6)); d.add(elm.Line().down(1.6)); d.add(elm.Ground())
+    to_gnd(d, sw.a, ("left", 0.6), ("down", 1.6))
     d.add(elm.Line().at(sw.b).up(0.6)); d.add(elm.Line().right(2.2)); tag(d, "U5 GPA0  (STOP)", k=TK)
     d.add(elm.Line().at(sw.c).down(0.6)); d.add(elm.Line().right(2.2)); tag(d, "U5 GPB0  (RUN)", k=TK)
     finish(d, ax2)
@@ -292,7 +288,7 @@ def sheet_inputs():
 
 # ================================================================ sheet 5
 def sheet_maps():
-    fig, fr = page(5, N, "Bit maps, start-up and breadboard subsets", "Bit maps, start-up")
+    fig, fr = page(5, N, "Bit maps and start-up", "Bit maps, start-up")
     led_rows = [
         ["U1 GPA", "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"],
         ["U1 GPB", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15"],
@@ -319,31 +315,21 @@ def sheet_maps():
     table(fig, [0.03, 0.34, 0.62, 0.22], "Start-up writes  (BANK = 0, SEQOP = 0: the A and B registers follow each other)",
           ["Step", "Opcodes", "Register", "Data", "Effect"], init_rows, [0.06, 0.19, 0.20, 0.11, 0.44], fs=8.5)
 
-    bb_rows = [
-        ["Stage 1", "U1 + LED1–LED8 + R11–R18", "SCK, MOSI, CS_n", "Binary counter on 8 LEDs (GPA)"],
-        ["Stage 2", "+ U4 + 8-way DIP switch on GPA", "+ MISO", "DIP switches mirrored on LEDs"],
-        ["Stage 3", "+ 8 LEDs on U1 GPB + 2nd DIP on U4 GPB", "same four signals", "16 bits each way, PWM brightness"],
-    ]
-    table(fig, [0.03, 0.12, 0.62, 0.17], "Breadboard subsets  (no J1/J2, wire FPGA pins directly)",
-          ["", "Parts added", "FPGA signals used", "Goal"], bb_rows, [0.09, 0.37, 0.20, 0.34], fs=8.5)
+    notes(fr, 0.03, 0.29, [
+        "The first breadboard (one MCP23S17, one byte each way) is drawn separately, in first_byte.py.",
+    ], size=10)
 
     notes(fr, 0.68, 0.56, [
         "Refresh loop:",
         "•  write OLATA/OLATB (0x14) of U1, U2, U3",
         "•  read GPIOA/GPIOB (0x12) of U4, U5",
-        "≈ 16 µs per pass at 10 MHz, so 8-bit PWM on",
-        "the LEDs still runs at a few hundred Hz.",
+        "≈ 16 µs per pass at 10 MHz.",
         "",
         "Step 1 relies on HAEN starting at 0. Some",
-        "MCP23S17 silicon decodes A2 even then; also",
+        "MCP23S17 silicon may decode A2 even then",
+        "(unverified; check the errata sheet). Also",
         "sending step 1 with opcode 0x48 covers U5",
-        "either way (see the errata sheet).",
-        "",
-        "Breadboard rules:",
-        "•  3V3 and GND from the Tang Nano only.",
-        "•  100 nF at pin 9 of every expander.",
-        "•  RESET_n pulled up; A2–A0 never left open.",
-        "•  Clip the analyser on SCK, MOSI, MISO, CS_n.",
+        "either way.",
     ], size=10)
     return fig
 
