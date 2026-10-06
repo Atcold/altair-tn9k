@@ -8,7 +8,7 @@ import schemdraw
 import schemdraw.elements as elm
 
 from schematic import (FS, T, fill, page, canvas, finish, notes, table,
-                       ic, tag, netlabel)
+                       ic, tag, netlabel, toggle, supply, nc)
 
 N = 5  # sheets in this set
 
@@ -73,7 +73,8 @@ def sheet_block():
                "Control toggles, DOWN side\nRUN, (spare), EXAM NEXT,\nDEP NEXT, CLR, UNPROTECT,\nAUX1, AUX2"]
     for i, (x, g) in enumerate(zip(xs2, groups2)):
         box(x, 17, 7, 6, f"U{i+6}\n74HC165", fc="#eaf0fb", fs=9)
-        ax.text(x + 3.5, 15.2, g, ha="center", va="top", fontsize=7.5)
+        toggle(ax, x + 3.5, 14.4)
+        ax.text(x + 3.5, 12.9, g, ha="center", va="top", fontsize=7.5)
     for a, b in zip(xs2[:-1], xs2[1:]):
         arrow(b - 0.3, 20, a + 7.3, 20, "QH→SER", (((a + 7.3) + b) / 2, 21.2), fs=6.5)
     ax.text(93.8, 20, "SER\n= GND", fontsize=7.5, va="center")
@@ -146,7 +147,7 @@ def sheet_carrier():
 
 # ================================================================ sheet 3
 def sheet_leds():
-    fig, fr = page(3, N, "LED chain: 5 × 74HC595  (U1 shown in full; U2–U5 identical)", "LED chain")
+    fig, fr = page(3, N, "LED chain: 5 × 74HC595  (U1 shown; U2–U4 alike, U5 uses QA–QD only)", "LED chain")
     ax = canvas(fig, [0.02, 0.12, 0.57, 0.80])
     d = schemdraw.Drawing(canvas=ax, show=False)
     outs = [("QA", "15", "QA"), ("QB", "1", "QB"), ("QC", "2", "QC"), ("QD", "3", "QD"), ("QE", "4", "QE"),
@@ -160,16 +161,13 @@ def sheet_leds():
     d.add(elm.Line().at(u.MR).left(1.2)); d.add(elm.Line().up(0.6)); d.add(elm.Vdd().label("3V3"))
     d.add(elm.Line().at(u.OE).left(1.2)); d.add(elm.Line().down(0.6)); d.add(elm.Ground())
     d.add(elm.Line().at(u.GND).down(0.4)); d.add(elm.Ground())
-    vt = d.add(elm.Line().at(u.VCC).up(1.4)); d.add(elm.Vdd().label("3V3"))
-    d.add(elm.Line().at(vt.end).left(1.2))
-    d.add(elm.Capacitor().left().length(1.8).label("C 100 nF", fontsize=FS - 1))
-    d.add(elm.Ground())
+    supply(d, u.VCC)
     names = ["A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7"]
     ends = []
     for k, (n, num, a) in enumerate(outs[:-1]):
         d.add(elm.Line().at(getattr(u, a)).right(0.8))
         d.add(elm.Resistor().right().length(2.8).label(f"R{11+k}  1 kΩ", fontsize=FS - 1))
-        led = d.add(elm.LED().right().length(2.6).label(f"D{1+k}  {names[k]}", fontsize=FS - 1))
+        led = d.add(elm.LED().right().length(2.6).label(f"LED{1+k}  {names[k]}", fontsize=FS - 1))
         ends.append(led.end)
     d.add(elm.Line().at(ends[0]).right(0.8))
     bus = d.add(elm.Line().down(ends[0].y - ends[-1].y))
@@ -195,7 +193,7 @@ def sheet_leds():
         "LEDs active high: output → resistor → anode, cathode → GND.",
         "1 kΩ ≈ 1.3 mA per LED; 470 Ω ≈ 3 mA if brighter is wanted.",
         "Worst case per chip 8 × 3 mA = 24 mA, within the 74HC595 limit.",
-        "Designators: U1 uses R11–R18 / D1–D8; U2 R21–R28 / D9–D16, etc.",
+        "Designators: U1 uses R11–R18 / LED1–LED8; U2 R21–R28 / LED9–LED16, etc.",
         "",
         "Shift order: the first bit clocked in ends on U5 QH, the last on U1 QA.",
         "HDL shifts led[39] first and led[0] last, then pulses RCLK once.",
@@ -206,7 +204,7 @@ def sheet_leds():
 
 # ================================================================ sheet 4
 def sheet_switches():
-    fig, fr = page(4, N, "Switch chain: 4 × 74HC165  (U6 shown in full; U7–U9 identical)", "Switch chain")
+    fig, fr = page(4, N, "Switch chain: 4 × 74HC165  (U6 shown; U7 alike, U8 and U9 have the control toggles)", "Switch chain")
     ax = canvas(fig, [0.02, 0.12, 0.50, 0.80])
     d = schemdraw.Drawing(canvas=ax, show=False)
     ins = [("A", "11", "A"), ("B", "12", "B"), ("C", "13", "C"), ("D", "14", "D"), ("E", "3", "E"),
@@ -218,10 +216,7 @@ def sheet_switches():
     d.add(elm.Line().at(u.INH).left(1.2)); d.add(elm.Line().down(0.4)); d.add(elm.Ground())
     netlabel(d, u.SER, "from U7 QH (pin 9)", length=1.0)
     d.add(elm.Line().at(u.GND).down(0.4)); d.add(elm.Ground())
-    vt = d.add(elm.Line().at(u.VCC).up(1.4)); d.add(elm.Vdd().label("3V3"))
-    d.add(elm.Line().at(vt.end).left(1.2))
-    d.add(elm.Capacitor().left().length(1.8).label("C 100 nF", fontsize=FS - 1))
-    d.add(elm.Ground())
+    supply(d, u.VCC)
     ends = []
     for k, (n, num, a, *_) in enumerate(ins[:8]):
         p = getattr(u, a)
@@ -239,7 +234,7 @@ def sheet_switches():
         d.add(elm.Line().at(e).right(0.8)); d.add(elm.Dot().at((e.x + 0.8, e.y)))
     d.add(elm.Line().at(bus.end).down(0.5)); d.add(elm.Ground())
     netlabel(d, u.QH, "SW_QH (J2-10)", direction="right", length=6.2)
-    d.add(elm.Line().at(u.QHN).right(0.6)); d.add(elm.Label().label("n.c.", "right", fontsize=FS - 1))
+    nc(d, u.QHN)
     finish(d, ax)
 
     # momentary switch detail
@@ -301,7 +296,7 @@ def sheet_maps():
           ["Chip", "A", "B", "C", "D", "E", "F", "G", "H"], sw_rows, [0.1] + [0.1125] * 8)
 
     bb_rows = [
-        ["Stage 1", "U1 + D1–D8 + R11–R18", "LED_SER, LED_SRCLK, LED_RCLK", "Binary counter on 8 LEDs"],
+        ["Stage 1", "U1 + LED1–LED8 + R11–R18", "LED_SER, LED_SRCLK, LED_RCLK", "Binary counter on 8 LEDs"],
         ["Stage 2", "+ U6 + RN1 + 8-way DIP switch", "+ SW_LOAD, SW_CLK, SW_QH", "DIP switches mirrored on LEDs"],
         ["Stage 3", "+ U2 (8 LEDs) + U7 + RN2 + 2nd DIP", "same six signals", "16 bits each way, PWM brightness"],
     ]

@@ -70,7 +70,7 @@ def canvas(fig, rect):
 
 def finish(d, ax, pad=0.6):
     """Draw a schemdraw Drawing into ax and fit the axes to it."""
-    d.draw()
+    d.draw(show=False)  # the figure is shown, or saved, by whoever asked for the sheet
     bb = d.get_bbox()
     ax.set_xlim(bb.xmin - pad, bb.xmax + pad)
     ax.set_ylim(bb.ymin - pad, bb.ymax + pad)
@@ -130,6 +130,12 @@ def ff(pinsT=(), w=2.2, h=2.4, label=""):
     return elm.Ic(pins=pins, size=(w, h)).right().label(label, "bottom", fontsize=FS - 1, ofst=0.25)
 
 
+def toggle(ax, x, y):
+    """Small toggle-switch glyph for block diagrams: a round bush with a lever."""
+    ax.plot([x, x + 0.45], [y, y + 1.1], color=T.FG, lw=2.2, solid_capstyle="round", zorder=3)
+    ax.add_patch(plt.Circle((x, y), 0.55, fc=fill("#c8c8c8"), ec=T.FG, lw=0.6, zorder=4))
+
+
 def tag(d, text, direction="right", k=(0.15, 0.9)):
     """Net-label tag sized to its text; k = (width per character, padding)."""
     visible = re.sub(r"\$\\overline\{\\mathrm\{(.*?)\}\}\$", r"\1", text)
@@ -140,6 +146,21 @@ def tag(d, text, direction="right", k=(0.15, 0.9)):
 def netlabel(d, at, text, direction="left", length=1.2, k=(0.15, 0.9)):
     d.add(elm.Line().at(at).length(length).theta(180 if direction == "left" else 0))
     tag(d, text, direction, k)
+
+
+def supply(d, pin, cap="C 100 nF"):
+    """Supply pin up to 3V3, with the decoupling capacitor branching off at a node."""
+    lower = d.add(elm.Line().at(pin).up(0.7))
+    d.add(elm.Dot())
+    d.add(elm.Line().up(0.7)); d.add(elm.Vdd().label("3V3"))
+    d.add(elm.Line().at(lower.end).left(1.2))
+    d.add(elm.Capacitor().left().length(1.8).label(cap, fontsize=FS - 1))
+    d.add(elm.Ground())
+
+
+def nc(d, pin):
+    """No-connect mark on an unused pin."""
+    d.add(elm.NoConnect().at(pin).scale(0.55))
 
 
 # ---------------------------------------------------------------- PDF

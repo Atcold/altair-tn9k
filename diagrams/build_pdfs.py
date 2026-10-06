@@ -16,6 +16,7 @@ matplotlib.use("Agg")  # no windows: render straight to files
 
 import schematic
 import panel_sr
+import panel_mcp
 import chips
 
 parser = argparse.ArgumentParser(description="Build the schematic PDFs into ../docs/.")
@@ -27,7 +28,10 @@ out.mkdir(exist_ok=True)
 suffix = "-dark" if args.dark else ""
 
 for name, sheets, title in [
-    ("altair-panel-schematic", panel_sr.SHEETS, "Altair 8800 replica, Tang Nano 9K: panel schematic"),
+    ("altair-panel-sr-schematic", panel_sr.SHEETS,
+     "Altair 8800 replica, Tang Nano 9K: panel schematic, shift registers"),
+    ("altair-panel-mcp-schematic", panel_mcp.SHEETS,
+     "Altair 8800 replica, Tang Nano 9K: panel schematic, SPI expanders"),
     ("74hc595-74hc165-internals", chips.SHEETS, "74HC595 and 74HC165 at flip-flop level"),
 ]:
     path = out / f"{name}{suffix}.pdf"
