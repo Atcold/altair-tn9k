@@ -11,9 +11,9 @@ def test_vectors():
     L = []
     # ---------------- 74HC595
     L += ["# ---------- 74HC595 ----------",
-          "# Paste into a Test component in 74HC595.dig. Rows run top to bottom;",
+          "# Paste into a Test component in s2p-74HC595.dig. Rows run top to bottom;",
           "# a clock edge happens where a clock column goes from 0 to 1. X = don't care, Z = high impedance.",
-          row(["SRCLR_n", "SER", "SRCLK", "RCLK", "OE_n", "QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH", "QHp"])]
+          row(["~SRCLR", "SER", "SRCLK", "RCLK", "~OE", "QA", "QB", "QC", "QD", "QE", "QF", "QG", "QH", "QH'"])]
     s = dict(sr=[0] * 8, store=None, sck=0, rck=0)
 
     def s595(clr, ser, sck, rck, oe, note=None):
@@ -38,8 +38,8 @@ def test_vectors():
     s595(1, 0, 0, 0, 0)
     s595(1, 0, 0, 1, 0, "RCLK edge: pattern appears at once (QA = last bit in, QH = first)")
     s595(1, 0, 0, 0, 0)
-    s595(1, 0, 0, 0, 1, "OE_n high: outputs float, QHp still driven")
-    s595(1, 0, 0, 0, 0, "OE_n low again")
+    s595(1, 0, 0, 0, 1, "~OE high: outputs float, QH' still driven")
+    s595(1, 0, 0, 0, 0, "~OE low again")
     s595(0, 0, 0, 0, 0, "clear: QHp drops at once, outputs keep the old pattern")
     s595(1, 0, 0, 0, 0)
     s595(1, 0, 0, 1, 0, "RCLK edge: the cleared register reaches the outputs")
@@ -47,8 +47,8 @@ def test_vectors():
 
     # ---------------- 74HC165
     L += ["", "# ---------- 74HC165 ----------",
-          "# Paste into a Test component in 74HC165.dig.",
-          row(["SH_LD_n", "CLK", "CLK_INH", "SER", "A", "B", "C", "D", "E", "F", "G", "H", "QH", "QH_n"])]
+          "# Paste into a Test component in p2s-74HC165.dig.",
+          row(["SH/~LD", "CLK", "CLK_INH", "SER", "A", "B", "C", "D", "E", "F", "G", "H", "QH", "~QH"])]
     q = dict(st=None, clk=0, inh=0)
 
     def s165(ld, clk, inh, ser, ins, note=None):

@@ -4,13 +4,13 @@ Circuits for [Digital](https://github.com/hneemann/Digital), Helmut Neemann's lo
 
 ## Building the chips
 
-1. Build each chip as its own circuit, `74HC595.dig` and `74HC165.dig`, with In/Out components labelled exactly as in the test vectors:
-   - 595: `SER SRCLK RCLK SRCLR_n OE_n` → `QA … QH QHp`
-   - 165: `SH_LD_n CLK CLK_INH SER A … H` → `QH QH_n`
+1. Build each chip as its own circuit, `s2p-74HC595.dig` (serial to parallel) and `p2s-74HC165.dig` (parallel to serial), with In/Out components labelled exactly as in the test vectors:
+   - 595: `SER SRCLK RCLK ~SRCLR ~OE` → `QA … QH QH'`
+   - 165: `SH/~LD CLK CLK_INH SER A … H` → `QH ~QH`
 
-   `_n` marks an active-low pin; `QHp` is QH'.
-2. Flip-flops: Digital's D flip-flop, with asynchronous inputs enabled for the 595's shift register and all 165 stages. Its Set and Clr are active high, so invert them (a NOT gate, or the component's inverted-input option) to match the drawings in `diagrams/`.
-3. Tri-state outputs of the 595: the Driver component, or its inverted-select variant driven by `OE_n` directly.
+   `~` marks an active-low pin, which Digital draws with a bar over the name.
+2. Flip-flops: Digital's D flip-flop, with asynchronous inputs enabled for the 595's shift register and all 165 stages. Its `Set` and `Clr` are active high, so invert them with the component's inverted-input option to match the drawings in `diagrams/`.
+3. Tri-state outputs of the 595: the Driver component, or its inverted-select variant driven by `~OE` directly.
 4. Add a Test component to each circuit, paste in the matching block of test vectors, and run the tests.
 5. Once both pass, give each circuit the DIL shape in its settings and use it as a chip in a third circuit: chain two of each and drive LEDs and DIP switches, as on the breadboard.
 
