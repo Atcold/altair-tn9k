@@ -4,11 +4,11 @@ from pathlib import Path
 
 
 def test_vectors():
-    """Digital test cases for both chips, from a behavioural model of each."""
+    """Digital test cases for both chips, and the 595 inputs as ROM words for the animation."""
     def row(v):
         return " ".join(str(x) for x in v)
 
-    L = []
+    L, rom = [], []
     # ---------------- 74HC595
     L += ["# ---------- 74HC595 ----------",
           "# Paste into a Test component in s2p-74HC595.dig. Rows run top to bottom;",
@@ -28,6 +28,8 @@ def test_vectors():
         if note:
             L.append("# " + note)
         L.append(row([clr, ser, sck, rck, oe] + out + [s["sr"][7]]))
+        # bit 0 to 4: ~OE RCLK SER ~SRCLR SRCLK, the splitter order in s2p-74HC595-animation.dig
+        rom.append(oe | rck << 1 | ser << 2 | clr << 3 | sck << 4)
 
     s595(0, 0, 0, 0, 0, "clear the shift register (storage still unknown)")
     s595(0, 0, 0, 1, 0, "RCLK edge: copy the cleared register to the outputs")
@@ -80,10 +82,13 @@ def test_vectors():
     s165(1, 1, 0, 0, pat)
     s165(1, 0, 0, 0, pat)
     s165(1, 1, 0, 0, pat, "one normal clock: the 0 on SER enters stage A, QH still 1")
-    return "\n".join(L) + "\n"
+    rom += [0b01000] * (32 - len(rom))  # pad the 5-bit counter's range with idle: only ~SRCLR high
+    return "\n".join(L) + "\n", "v2.0 raw\n" + " ".join(f"{w:x}" for w in rom) + "\n"
 
 
 if __name__ == "__main__":
-    out = Path(__file__).resolve().parent / "74hc595-74hc165-tests.txt"
-    out.write_text(test_vectors())
-    print(out)
+    here = Path(__file__).resolve().parent
+    tests, rom = test_vectors()
+    for name, text in [("74hc595-74hc165-tests.txt", tests), ("s2p-74HC595-animation.hex", rom)]:
+        (here / name).write_text(text)
+        print(here / name)

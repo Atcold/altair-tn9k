@@ -17,7 +17,17 @@ Circuits for [Digital](https://github.com/hneemann/Digital), Helmut Neemann's lo
 ## Test vectors
 
 ```sh
-./test_vectors.py   # writes 74hc595-74hc165-tests.txt
+./test_vectors.py   # writes 74hc595-74hc165-tests.txt and s2p-74HC595-animation.hex
 ```
 
 They come from a behavioural model of each chip in `test_vectors.py`, not from the datasheets directly, so if a test fails, check the vector as well as the circuit.
+
+## Animation
+
+`s2p-74HC595-animation.dig` replays the 595 test: a 5-bit counter steps a ROM through one test row per tick, and a splitter fans each word out to the inputs. Bits 0 to 4 of each word, matching the splitter outputs top to bottom:
+
+| bit | 0 | 1 | 2 | 3 | 4 |
+|---|---|---|---|---|---|
+| input | ~OE | RCLK | SER | ~SRCLR | SRCLK |
+
+Addresses past the last row hold the idle word `8` (only ~SRCLR high). The ROM keeps its own copy of the data, so after changing the vectors rerun `./test_vectors.py` and reload the ROM from the `.hex`.

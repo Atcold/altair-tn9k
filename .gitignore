@@ -3,6 +3,7 @@ build/
 *.vcd
 *.fst
 digital/74hc595-74hc165-tests.txt
+digital/s2p-74HC595-animation.hex
 *.pdf
 
 # KiCad
