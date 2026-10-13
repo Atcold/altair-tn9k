@@ -6,7 +6,7 @@ import schemdraw
 import schemdraw.elements as elm
 import schemdraw.logic as logic
 
-from schematic import FS, T, page, canvas, finish, notes, table, tag, ff, OV, net_colour
+from schematic import FS, T, page, canvas, finish, notes, table, tag, tunnel, ff, OV, net_colour
 
 N = 3            # sheets in this set
 TK = (0.36, 1.2, 1.1)   # tag sizing for these larger drawings: width per character, end padding, height
@@ -14,9 +14,9 @@ TKO = (0.36, 2.0, 1.1)  # output tags: extra room around the text
 TK5 = (0.27, 1.0, 0.85) # the 74HC165 sheet is drawn larger, so its tags need less
 
 
-def bus(d, y, xa, xb, text, k=None):
+def bus(d, y, xa, xb, text, k=None, kind="pin"):
     d.add(elm.Line().at((xa, y)).to((xb, y)).color(net_colour(text)))
-    d.add(elm.Line().at((xa, y)).left(0.01)); tag(d, text, "left", k or TK)
+    d.add(elm.Line().at((xa, y)).left(0.01)); tag(d, text, "left", k or TK, kind)
 
 
 def clock_drops(d, flops, y):
@@ -49,7 +49,10 @@ def sheet_595():
             st.append(d.add(ff(w=3.0, h=3.6, label=f"store {names[i]}").at((x + SOFF, Y + SY))))
         x0 = sh[0].D.x - 2.2
         d.add(elm.Line().at(sh[0].D).left(2.2).color(DT))
-        tag(d, "SER  (14)" if r == 0 else "shift D→E", "left", TK)
+        if r == 0:
+            tag(d, "SER  (14)", "left", TK)
+        else:
+            tunnel(d, "shift D→E", "left")
         for c in range(4):
             i = 4 * r + c
             q = sh[c].Q
@@ -58,7 +61,10 @@ def sheet_595():
                 d.add(elm.Line().at(q).to(sh[c + 1].D).color(DT))
             else:
                 d.add(elm.Line().at(q).right(2.5).color(DT))
-                tag(d, "QH'  (9)" if i == 7 else "shift D→E", "right", TK)
+                if i == 7:
+                    tag(d, "QH'  (9)", "right", TK)
+                else:
+                    tunnel(d, "shift D→E", "right")
             d.add(elm.Dot().at((tapx, q.y)).color(DT))
             d.add(elm.Line().at((tapx, q.y)).to((tapx, st[c].D.y)).color(DT))
             d.add(elm.Line().at((tapx, st[c].D.y)).to(st[c].D).color(DT))
@@ -96,7 +102,7 @@ def sheet_595():
             d.add(elm.Line().at((x0 + 0.6, yoe)).left(0.01)); tag(d, OV("OE") + "  (13)", "left", TK)
             d.add(elm.Label().at((x0 + 5.2, yoe + 0.6)).label("OE (internal)", fontsize=FS - 1))
         else:
-            bus(d, yoe, x0, tris[3].c.x, "OE (internal)")
+            bus(d, yoe, x0, tris[3].c.x, "OE (internal)", kind="tunnel")
     finish(d, ax, pad=0.5)
 
     notes(fr, 0.03, 0.245, [
@@ -106,7 +112,8 @@ def sheet_595():
         "which is why the LEDs never show bits sliding past: outputs only change on RCLK.",
         f"{OV('SRCLR')} low clears the shift register only (asynchronously). The storage register keeps its value until the next RCLK.",
         f"{OV('OE')} high puts QA–QH in high impedance. On the panel it is tied to GND, so outputs are always driven.",
-        "Drawn in two rows for legibility: identically named tags are the same wire. All flip-flops are rising-edge D-types (the wedge marks the clock input).",
+        "Drawn in two rows for legibility. Pointed boxes are pins; a filled triangle is a tunnel, the same wire as the one with its name.",
+        "All flip-flops are rising-edge D-types (the wedge marks the clock input).",
     ], title="How it works", size=10)
     return fig
 
@@ -130,11 +137,14 @@ def sheet_165():
                                 qn=(i == 7)).at((c * PITCH, Y))))  # only stage H's Q-bar is used: pin 7
         x0 = fs_[0].D.x - 2.2
         d.add(elm.Line().at(fs_[0].D).left(2.2).color(DT))
-        tag(d, "SER  (10)" if r == 0 else "stage D→E", "left", TK5)
+        if r == 0:
+            tag(d, "SER  (10)", "left", TK5)
+        else:
+            tunnel(d, "stage D→E", "left")
         for c in range(3):
             d.add(elm.Line().at(fs_[c].Q).to(fs_[c + 1].D).color(DT))
         if r == 0:
-            d.add(elm.Line().at(fs_[3].Q).right(1.8).color(DT)); tag(d, "stage D→E", "right", TK5)
+            d.add(elm.Line().at(fs_[3].Q).right(1.8).color(DT)); tunnel(d, "stage D→E", "right")
         else:
             d.add(elm.Line().at(fs_[3].Q).right(1.8).color(DT)); tag(d, "QH  (9)", "right", TK5)
             d.add(elm.Line().at(fs_[3].QN).right(1.8).color(DT)); tag(d, OV("QH") + "  (7)", "right", TK5)
@@ -144,9 +154,10 @@ def sheet_165():
         for c, f in enumerate(fs_):
             i = 4 * r + c
             pre, clr = f.PRE, f.CLR
-            n1 = d.add(logic.Nand().down().anchor("out").at((pre.x, pre.y + 0.5)))
+            # input 1 of each NAND is SH/LD, active low (bubble)
+            n1 = d.add(logic.Nand(inputnots=[1]).down().anchor("out").at((pre.x, pre.y + 0.5)))
             d.add(elm.Line().at(n1.out).to(pre).color(CT))
-            n2 = d.add(logic.Nand().down().anchor("out").at((clr.x, clr.y + 0.5)))
+            n2 = d.add(logic.Nand(inputnots=[1]).down().anchor("out").at((clr.x, clr.y + 0.5)))
             d.add(elm.Line().at(n2.out).to(clr).color(CT))
             ydot = pre.y + 0.25
             xm = (pre.x + clr.x) / 2
@@ -165,15 +176,7 @@ def sheet_165():
             d.add(elm.Line().at(n1.in2).to(top).color(DT))
             d.add(elm.Line().at(top).left(0.8).color(DT))
             tag(d, pins_in[i], "left", TK5)
-        xl_end = fs_[3].CLR.x + 0.25
-        if r == 0:
-            # inverter far enough left that the LOAD name fits before the first branch
-            d.add(elm.Line().at((x0 + 1.0, yload)).to((xl_end, yload)).color(CT))
-            d.add(logic.Not().right().at((x0 - 2.6, yload)).length(3.6).color(CT))
-            d.add(elm.Line().at((x0 - 2.6, yload)).left(0.01)); tag(d, "SH/" + OV("LD") + "  (1)", "left", TK5)
-            d.add(elm.Label().at((x0 + 2.2, yload + 0.45)).label("LOAD", fontsize=FS - 1))
-        else:
-            bus(d, yload, x0, xl_end, "LOAD", TK5)
+        bus(d, yload, x0, fs_[3].CLR.x + 0.25, "SH/" + OV("LD") + "  (1)", TK5)
 
         yck = fs_[0].C.y - 2.6  # low enough to clear the "stage A" names under the boxes
         clock_drops(d, fs_, yck)
@@ -190,17 +193,18 @@ def sheet_165():
             d.add(elm.Line().left(0.4).color(K))
             tag(d, "CLK INH  (15)", "left", TK5)
         else:
-            bus(d, yck, x0, fs_[3].C.x - 0.5, "CLK (internal)", TK5)
+            bus(d, yck, x0, fs_[3].C.x - 0.5, "CLK (internal)", TK5, kind="tunnel")
     finish(d, ax, pad=0.5)
 
     notes(fr, 0.03, 0.245, [
-        f"Parallel load: SH/{OV('LD')} low makes LOAD = 1. In each stage the two NANDs turn the input bit into an asynchronous preset or clear:",
+        f"Parallel load: SH/{OV('LD')} goes to every stage. While it is low, the two NANDs (bubble = active-low input) turn the input bit into an asynchronous preset or clear:",
         f"input 1  →  left NAND outputs 0  →  {OV('PRE')} active  →  Q = 1;   input 0  →  right NAND outputs 0  →  {OV('CLR')} active  →  Q = 0.",
         "The load is asynchronous and continuous: while SH/LD is low, Q follows the inputs and the clock is ignored.",
         "Shift: with SH/LD high both NANDs output 1 (inactive). Each rising edge of the internal clock moves SER into A and A…G into B…H.",
         "QH is stage H, so right after a load it already shows input H: the first bit is readable before any clock pulse.",
         "Internal clock = CLK OR CLK INH, so either input held high blocks the other. Change CLK INH only while CLK is high, or its edge acts as a clock.",
-        "Drawn in two rows for legibility: identically named tags are the same wire. All flip-flops are rising-edge D-types (the wedge marks the clock input).",
+        "Drawn in two rows for legibility. Pointed boxes are pins; a filled triangle is a tunnel, the same wire as the one with its name.",
+        "All flip-flops are rising-edge D-types (the wedge marks the clock input).",
     ], title="How it works", size=10)
     return fig
 

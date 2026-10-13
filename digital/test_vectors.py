@@ -73,15 +73,21 @@ def test_vectors():
     s165(1, 0, 0, 1, pat)
     for k in range(8):
         s165(1, 1, 0, 1, pat); s165(1, 0, 0, 1, pat)
-    s165(1, 1, 0, 0, pat, "raise CLK_INH while CLK is high, then pulse CLK: no shift")
-    s165(1, 1, 1, 0, pat)
+    s165(0, 0, 0, 0, pat, "reload: QH = H = 0. H, G, F alternate, so a missing or extra shift shows on QH")
+    s165(1, 0, 0, 0, pat)
+    s165(1, 1, 0, 0, pat, "one clock: QH = G = 1")
+    s165(1, 1, 1, 0, pat, "raise CLK_INH while CLK is high, then pulse CLK twice: no shift, QH stays 1")
     s165(1, 0, 1, 0, pat)
     s165(1, 1, 1, 0, pat)
     s165(1, 0, 1, 0, pat)
-    s165(1, 1, 1, 0, pat, "release CLK_INH while CLK is high")
+    s165(1, 1, 1, 0, pat, "release CLK_INH while CLK is high, then CLK low: no shift")
     s165(1, 1, 0, 0, pat)
     s165(1, 0, 0, 0, pat)
-    s165(1, 1, 0, 0, pat, "one normal clock: the 0 on SER enters stage A, QH still 1")
+    s165(1, 1, 0, 0, pat, "one normal clock: QH = F = 0")
+    s165(1, 0, 0, 0, pat)
+    s165(1, 0, 1, 0, pat, "hazard: raising CLK_INH while CLK is low clocks too. Two rises: QH = E = 0, then D = 1")
+    s165(1, 0, 0, 0, pat)
+    s165(1, 0, 1, 0, pat)
     rom += [0b01000] * (32 - len(rom))  # pad the 5-bit counter's range with idle: only ~SRCLR high
     return "\n".join(L) + "\n", "v2.0 raw\n" + " ".join(f"{w:x}" for w in rom) + "\n"
 

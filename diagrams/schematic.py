@@ -96,8 +96,8 @@ def finish(d, ax, pad=0.6):
     h_in = ax.get_position().height * ax.figure.get_figheight()
     for _ in range(3):
         units_per_pt = max((x1 - x0) / (w_in * 72), (y1 - y0) / (h_in * 72))  # equal aspect
-        for p, text, direction, _c in getattr(d, "tags", []):
-            reach = _tag_extent(text) * units_per_pt
+        for p, text, direction, _c, kind in getattr(d, "tags", []):
+            reach = _tag_extent(text, kind) * units_per_pt
             if direction == "left":
                 x0 = min(x0, p.x - reach - pad)
             elif direction == "right":
@@ -247,20 +247,32 @@ TAG_PAD = 0.35    # room around the text inside a tag, in multiples of the font 
 TAG_TIP = 1.2     # how far a tag's point sticks out beyond its text box, same unit
 
 
-def tag(d, text, direction="right", k=None):
+TUNNEL_LEN = 1.0  # tunnel triangle length, in multiples of the font size
+TUNNEL_GAP = 0.3  # space between the triangle and its name, same unit
+
+
+def tag(d, text, direction="right", k=None, kind="pin"):
     """Net-label tag at the drawing's current position (the end of the lead just drawn).
 
-    The tag itself is a text box drawn by finish(), sized in points around the text, so tags are
-    the same size on every sheet whatever the drawing's scale. direction is where the tag sits
-    relative to the lead's end: "left", "right" or "down". k is accepted and ignored (old sizing).
+    The tag itself is drawn by finish(), sized in points, so tags are the same size on every sheet
+    whatever the drawing's scale. direction is where the tag sits relative to the lead's end:
+    "left", "right" or "down". k is accepted and ignored (old sizing).
+    kind "pin" is a pointed box (a pin or a net leaving the drawing); kind "tunnel" is a filled
+    triangle with the name beside it, as in Digital: tunnels with the same name are the same wire.
     """
     if not hasattr(d, "tags"):
         d.tags = []
-    d.tags.append((d.here, text, direction, net_colour(text)))
+    d.tags.append((d.here, text, direction, net_colour(text), kind))
 
 
-def _tag_extent(text):
-    """Tag length in points, from the lead's end to the far side of the box (an estimate)."""
+def tunnel(d, text, direction="right"):
+    tag(d, text, direction, kind="tunnel")
+
+
+def _tag_extent(text, kind="pin"):
+    """Tag length in points, from the lead's end to the far side of the text (an estimate)."""
+    if kind == "tunnel":
+        return (0.62 * len(visible(text)) + TUNNEL_LEN + TUNNEL_GAP) * TAG_FS
     return (0.62 * len(visible(text)) + 2 * TAG_PAD + TAG_TIP) * TAG_FS
 
 
@@ -278,8 +290,33 @@ def _tag_shape(point):
     return style
 
 
+def _tunnel_marker(direction):
+    """Triangle marker with its apex at the origin, so the apex sits on the lead's end."""
+    body = {"left": [(-1, 0.6), (-1, -0.6)], "right": [(1, 0.6), (1, -0.6)],
+            "down": [(-0.6, -1), (0.6, -1)]}[direction]
+    return Path([(0, 0), *body, (0, 0)], closed=True)
+
+
+def _draw_tunnel(ax, p, text, direction, colour):
+    size = TUNNEL_LEN * TAG_FS
+    # matplotlib scales a path marker so its largest coordinate spans half the marker size
+    ax.plot([p.x], [p.y], marker=_tunnel_marker(direction), markersize=2 * size,
+            color=colour, mec=colour, linestyle="none", zorder=5)
+    off = (TUNNEL_LEN + TUNNEL_GAP) * TAG_FS
+    ha, va, xy_off, rot = {
+        "left": ("right", "center", (-off, 0), 0),
+        "right": ("left", "center", (off, 0), 0),
+        "down": ("center", "top", (0, -off), 90),
+    }[direction]
+    ax.annotate(text, xy=(p.x, p.y), xytext=xy_off, textcoords="offset points",
+                ha=ha, va=va, rotation=rot, fontsize=TAG_FS, color=colour)
+
+
 def _draw_tags(d, ax):
-    for p, text, direction, colour in getattr(d, "tags", []):
+    for p, text, direction, colour, kind in getattr(d, "tags", []):
+        if kind == "tunnel":
+            _draw_tunnel(ax, p, text, direction, colour)
+            continue
         off = TAG_TIP * TAG_FS  # the tag's point sits on the lead's end
         point, ha, va, xy_off, rot = {
             "left": ("right", "right", "center", (-off, 0), 0),   # tag left of the lead, pointing at it
