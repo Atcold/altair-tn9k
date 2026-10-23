@@ -12,6 +12,7 @@ digital/s2p-74HC595-animation.hex
 *.lck
 fp-info-cache
 _autosave-*
+.history/
 
 # Python
 .venv/
