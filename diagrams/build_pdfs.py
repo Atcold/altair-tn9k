@@ -1,5 +1,5 @@
 #!/usr/bin/env -S uv run
-"""Build the schematic PDFs into ../docs/."""
+"""Build the schematic PDFs into ../docs/build/."""
 import argparse
 from pathlib import Path
 
@@ -12,7 +12,7 @@ import first_byte
 import panel_sr
 import panel_mcp
 
-parser = argparse.ArgumentParser(description="Build the schematic PDFs into ../docs/.")
+parser = argparse.ArgumentParser(description="Build the schematic PDFs into ../docs/build/.")
 theme = parser.add_mutually_exclusive_group()
 theme.add_argument("--dark", dest="theme", action="store_const", const="dark",
                    help="dark theme instead of light")
@@ -21,8 +21,8 @@ theme.add_argument("--mono", dest="theme", action="store_const", const="mono",
 args = parser.parse_args()
 args.theme = args.theme or "light"
 
-out = Path(__file__).resolve().parent.parent / "docs"
-out.mkdir(exist_ok=True)
+out = Path(__file__).resolve().parent.parent / "docs" / "build"
+out.mkdir(parents=True, exist_ok=True)
 suffix = "" if args.theme == "light" else f"-{args.theme}"
 
 for name, sheets, title in [

@@ -1,0 +1,31 @@
+% Shared style for the write-ups: names and review hands.
+% \name and \here follow learning-with-claude's style/lesson.sty.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{chapter}
+
+\RequirePackage{xcolor}
+\RequirePackage{tikz}
+\RequirePackage{xspace}
+\RequirePackage{pgfornament}
+
+% Names of things (chips, pins, files, folders, programs) in sans; \texttt only for literal text.
+% The sans underscore is a third wider than a letter; inside \name it is as wide as a space.
+\newcommand{\name@us}{\leavevmode\rule[-0.164em]{\fontdimen2\font}{0.075em}}
+\newcommand{\name}[1]{\textsf{\let\_\name@us#1}}
+
+% Review arrows: a numbered hand in the left margin, level with the line it sits on.
+% \here[what changed]; \reviewfalse hides them all.
+\newif\ifreview
+\reviewtrue
+\newcounter{here}
+\newcommand{\here@hand}[1]{\ifreview\refstepcounter{here}\tikz[remember picture,overlay,baseline]{
+  \node[anchor=east, inner sep=0pt, font=\small\bfseries\color{red!85!black}] (here@h)
+    at ([xshift=1.95cm]current page.west |- 0,0.3em) {\thehere\,\pgfornament[height=0.9em]{152}};
+  \if\relax\detokenize{#1}\relax\else
+    \node[anchor=north east, inner sep=0pt, text width=1.7cm, align=right,
+      font=\tiny\itshape\color{red!85!black}] at ([yshift=-1.5pt]here@h.south east) {#1};
+  \fi}\fi}
+\newcommand{\here}[1][]{%
+  \ifvmode\leavevmode\let\here@next\ignorespaces
+  \else\ifdim\lastskip>\z@\let\here@next\ignorespaces\else\let\here@next\xspace\fi\fi
+  \here@hand{#1}\here@next}

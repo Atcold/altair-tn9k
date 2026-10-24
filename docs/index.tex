@@ -1,0 +1,47 @@
+% The list of write-ups, one entry per stage; each links to its chapter's PDF beside it in build/.
+% Build with ./build.sh (settings in .latexmkrc), which also writes index.md from this file.
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{enumitem}
+\usepackage{chapter}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black,filecolor=blue!50!black]{hyperref}
+
+\setlist[description]{style=nextline, leftmargin=1.5em}  % here, not on the list: pandoc skips lists with options
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{Altair 8800 replica on a Tang Nano 9K\\[0.3em]\large Write-ups}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+One chapter per stage of the build: what to wire, why, and how to tell it works.
+
+\section*{Stages}
+
+\begin{description}
+  \item[Stage 0a: open-source toolchain blink]
+    Blink an onboard LED from one \name{.v} file through both Gowin EDA and the open-source flow.
+  \item[Stage 0b: hello world on the logic analyser]
+    A Verilog UART sends ‘Hello world’, read back by the logic analyser’s decoder and by a serial terminal.
+  \item[\href{595-by-hand.pdf}{Stage 0c: one \name{74HC595} by hand}]
+    Three buttons stand in for the FPGA: shift a byte in bit by bit, then latch it onto eight LEDs.
+\end{description}
+
+\section*{Schematics}
+
+\begin{itemize}
+  \item \href{74hc595-74hc165-internals.pdf}{The \name{74HC595} and \name{74HC165} at flip-flop level}
+  \item \href{altair-first-byte-schematic.pdf}{First byte: both backends on one breadboard}
+  \item \href{altair-panel-sr-schematic.pdf}{Panel, shift-register backend}
+  \item \href{altair-panel-mcp-schematic.pdf}{Panel, SPI-expander backend}
+\end{itemize}
+
+The parts list for both backends is \name{docs/parts.md} in the repo.
+
+\end{document}

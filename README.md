@@ -30,7 +30,7 @@ kicad/        schematics, one KiCad project per backend
   panel-sr/
   panel-mcp/
 diagrams/     schemdraw notebooks
-docs/         rendered figures and write-ups
+docs/         write-ups in LaTeX; built into docs/build/, figures in docs/fig/
 ide/          Gowin EDA project
 Makefile      open-source flow (Yosys, nextpnr-himbaechel, Apicula, openFPGALoader)
 ```

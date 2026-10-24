@@ -1,0 +1,119 @@
+% Stage 0c: one 74HC595 driven by hand from three buttons.
+% Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}  % [H]: each figure stays where the text refers to it
+\usepackage{enumitem}
+\usepackage{chapter}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{groupplots}
+\definecolor{clock}{HTML}{B36B00}  % the schematics' clock-net amber
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{Stage 0c: one \name{74HC595} by hand}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Before any Verilog, your hands are the controller the FPGA will later be. Three pushbuttons stand in for the three FPGA pins that will drive the chip: \name{SER} (the data bit), \name{SRCLK} (shift) and \name{RCLK} (latch). In Stage~1, a state machine in the FPGA presses them in the same order.
+
+\section*{Parts}
+
+From the starter kit:
+\begin{itemize}[nosep]
+  \item 1\,$\times$ 400-point breadboard
+  \item 1\,$\times$ power-supply module
+  \item 1\,$\times$ \name{74HC595}
+  \item 3\,$\times$ pushbutton
+  \item 8\,$\times$ LED
+  \item 8\,$\times$ 330\,Ω resistor
+  \item 3\,$\times$ 10\,kΩ resistor
+  \item 2\,$\times$ 100\,nF ceramic capacitor (marked 104)
+\end{itemize}
+
+Use red, yellow or green LEDs: blue and white drop about 3\,V and barely light at 3.3\,V.
+
+\section*{Power}
+
+The 9\,V adapter goes into the module, with its jumpers on \textbf{3.3\,V}, so this breadboard later takes the Tang Nano unchanged. Measure the rails before inserting the chip.
+
+\section*{Wiring}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig/74HC595-manual-test.pdf}
+  \caption{The breadboard, from \name{kicad/74HC595-manual-test/}.}
+\end{figure}
+
+The 10\,kΩ resistors are pull-downs: they hold each input at 0\,V while its button is up. Without them a released input floats and reads whatever it picks up.
+
+\section*{Bounce}
+
+When a button’s contacts close, they rattle for up to about a millisecond: closed, open, closed, open, then closed for good. Release does the same. The chip is fast enough to see every one of those closures.
+
+Only \name{SRCLK} cares. Each rising edge on \name{SRCLK} shifts in one bit, so a bouncing press shifts in several. \name{SER} is a level, read only at the moment \name{SRCLK} rises, and a bouncing \name{RCLK} just copies the same register to the outputs again.
+
+The fix is the capacitor across \name{SRCLK}’s pull-down.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{fig/debounce-circuit.pdf}
+  \caption{\name{SRCLK} input, without and with the capacitor.}
+\end{figure}
+
+\begin{itemize}
+  \item \textbf{Press.} The button ties \name{SRCLK} straight to 3.3\,V, with no resistance in the way, so the capacitor charges at once: one fast, clean rising edge.
+  \item \textbf{Bounce.} Each time the contacts open, the capacitor can only drain through the 10\,kΩ, with time constant 10\,kΩ × 100\,nF = 1\,ms. Over a gap of a tenth of a millisecond the voltage drops by about a tenth, nowhere near the point where the chip would read \name{LOW}, so it never sees a second rising edge.
+  \item \textbf{Release.} The voltage falls slowly, about a millisecond through the undefined band between \name{LOW} and \name{HIGH}. The chip shifts on rising edges only, so the slow fall does nothing.
+\end{itemize}
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}
+    \begin{groupplot}[
+        group style={group size=1 by 2, vertical sep=1.4cm, xlabels at=edge bottom, xticklabels at=edge bottom},
+        width=\linewidth, height=4.2cm, xmin=0, xmax=7, ymin=-0.3, ymax=4.2,
+        ytick={0,3.3}, yticklabels={0, 3.3\,V}, axis lines=left, axis line style={->}, grid=major, grid style={black!6}, xlabel={time (ms)}, clip=false,
+        title style={at={(0,1)}, anchor=south west, font=\small}]
+      \nextgroupplot[title={Pull-down only: 6 rising edges, so 6 shifts}]
+        \fill[black, fill opacity=0.08] (axis cs:0,0.99) rectangle (axis cs:7,2.31);  % see-through: grid and axis show
+        \addplot[clock, thick, no marks] table[x=t, y=bare] {data/debounce.dat};
+        \draw[->] (axis cs:1,4.0) node[above, font=\scriptsize] {press} -- (axis cs:1,3.45);
+        \draw[->] (axis cs:4,4.0) node[above, font=\scriptsize] {release} -- (axis cs:4,3.45);
+      \nextgroupplot[title={Capacitor across the pull-down: 1 rising edge, so 1 shift}]
+        \fill[black, fill opacity=0.08] (axis cs:0,0.99) rectangle (axis cs:7,2.31);
+        \addplot[clock, thick, no marks] table[x=t, y=cap] {data/debounce.dat};
+    \end{groupplot}
+  \end{tikzpicture}
+  \caption{The same bouncy press and release, without and with the capacitor, simulated in \name{diagrams/debounce.ipynb}. The bounce pattern is invented, and stretched so it shows at this scale. In the grey band, between 0.3 and 0.7 of the supply, the chip’s reading is undefined.}
+\end{figure}
+
+One caveat: the \name{595}’s inputs have no hysteresis, so noise during that slow fall could in principle flick the input up and down. A Schmitt-trigger input (\name{74HC14}) prevents it. If a release ever adds a shift, that is the cause.
+
+\section*{Procedure}
+
+It mirrors the \name{595} test in \name{digital/}.
+
+\begin{enumerate}
+  \item \textbf{Clear.} At power-up the outputs show any pattern. With \name{SER} up, press \name{SRCLK} eight times, then \name{RCLK}: all LEDs off.
+  \item \textbf{Shift in 1, 0, 1, 1, 0, 0, 0, 1.} For a 1, hold \name{SER} and press \name{SRCLK}; for a 0, press \name{SRCLK} alone. Always press \name{SER} \emph{before} \name{SRCLK}. The LEDs don’t change: the bits are in the shift register, not yet on the outputs.
+  \item \textbf{Latch.} Press \name{RCLK}. \name{QA} to \name{QH} now show 1, 0, 0, 0, 1, 1, 0, 1: the last bit in is at \name{QA}, the first at \name{QH}.
+\end{enumerate}
+
+Pressing \name{SRCLK} once more shifts everything along by one, but the LEDs only show it after the next \name{RCLK}.
+
+\section*{Done when}
+
+A pattern pressed in bit by bit appears on the LEDs only on the \name{RCLK} press, and every \name{SRCLK} press moves it along by exactly one place.
+
+\end{document}
