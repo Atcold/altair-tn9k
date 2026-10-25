@@ -10,7 +10,7 @@ Schematic drawings of the front panel and of the two shift-register chips, made 
 - `panel_sr.py`: panel sheets for the shift-register backend: block diagram, carrier and connector, LED chain, switch chain, bit maps.
 - `panel_mcp.py`: panel sheets for the SPI-expander backend: block diagram, carrier and connector, output expander, input expander, bit maps and start-up writes.
 - `debounce.py`: the Stage 0c circuit figure, a button clocking SRCLK without and with a capacitor. `../docs/build.sh` runs it and writes it as SVG to `../docs/fig/`.
-- `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. Re-run it after changing the model; the `.dat` is committed, so the chapter builds without it.
+- `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. The `.dat` is not committed: run the notebook before the first build, and again after changing the model.
 - `kicad_sheet.py`: exports a KiCad schematic as SVG, cropped to the drawing, for the write-ups in `../docs/`.
 - `schematic.py`: shared helpers: A3 page and title block, net tags, IC and flip-flop shapes, tables, themes, PDF output.
 - `build_pdfs.py`: writes the PDFs, in the light theme by default, dark or black and white on request.
