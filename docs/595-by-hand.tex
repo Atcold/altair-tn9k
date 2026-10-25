@@ -3,17 +3,25 @@
 
 \documentclass[11pt,a4paper]{article}
 
+\usepackage{amsmath}  % \tag*: the unit of each display equation, flush right
 \usepackage{fontspec}
+% Latin Modern Mono has no Greek: the code's τ comes from DejaVu Sans Mono. No bold monospace:
+% Pygments' bold keywords stay regular.
+\directlua{luaotfload.add_fallback("monogreek", {"DejaVuSansMono.ttf:mode=node;"})}
+\setmonofont{Latin Modern Mono}[RawFeature={fallback=monogreek}, BoldFont={Latin Modern Mono}, BoldItalicFont={Latin Modern Mono Slanted}]
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{graphicx}
 \usepackage{float}  % [H]: each figure stays where the text refers to it
 \usepackage{enumitem}
+\usepackage{minted}  % the simulation's code, highlighted by Pygments as in Jupyter; frame drawn as lines, no fill
+\setminted{fontsize=\footnotesize, frame=single, framerule=0.4pt, rulecolor=black!30, framesep=4pt, xleftmargin=-8pt, xrightmargin=-8pt}
 \usepackage{chapter}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 \usepgfplotslibrary{groupplots}
 \definecolor{clock}{HTML}{B36B00}  % the schematics' clock-net amber
 \usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+\usepackage{cleveref}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.6em}
@@ -59,7 +67,7 @@ The 10\,kΩ resistors are pull-downs: they hold each input at 0\,V while its but
 
 \section*{Bounce}
 
-When a button’s contacts close, they rattle for up to about a millisecond: closed, open, closed, open, then closed for good. Release does the same. The chip is fast enough to see every one of those closures.
+When a button’s contacts close, they rattle for up to about a millisecond: closed, open, closed, open, then closed for good, typically 10 to 100 times~\cite[§10.4.1A \textit{Switch debouncing}, p.~729]{horowitz}. Release does the same. The chip is fast enough to see every one of those closures.
 
 Only \name{SRCLK} cares. Each rising edge on \name{SRCLK} shifts in one bit, so a bouncing press shifts in several. \name{SER} is a level, read only at the moment \name{SRCLK} rises, and a bouncing \name{RCLK} just copies the same register to the outputs again.
 
@@ -87,7 +95,7 @@ The fix is the capacitor across \name{SRCLK}’s pull-down.
         title style={at={(0,1)}, anchor=south west, font=\small}]
       \nextgroupplot[title={Pull-down only: 6 rising edges, so 6 shifts}]
         \fill[black, fill opacity=0.08] (axis cs:0,0.99) rectangle (axis cs:7,2.31);  % see-through: grid and axis show
-        \addplot[clock, thick, no marks] table[x=t, y=bare] {data/debounce.dat};
+        \addplot[clock, thick, no marks] table[x=t, y=pulldown] {data/debounce.dat};
         \draw[->] (axis cs:1,4.0) node[above, font=\scriptsize] {press} -- (axis cs:1,3.45);
         \draw[->] (axis cs:4,4.0) node[above, font=\scriptsize] {release} -- (axis cs:4,3.45);
       \nextgroupplot[title={Capacitor across the pull-down: 1 rising edge, so 1 shift}]
@@ -95,10 +103,10 @@ The fix is the capacitor across \name{SRCLK}’s pull-down.
         \addplot[clock, thick, no marks] table[x=t, y=cap] {data/debounce.dat};
     \end{groupplot}
   \end{tikzpicture}
-  \caption{The same bouncy press and release, without and with the capacitor, simulated in \name{diagrams/debounce.ipynb}. The bounce pattern is invented, and stretched so it shows at this scale. In the grey band, between 0.3 and 0.7 of the supply, the chip’s reading is undefined.}
+  \caption{The same bouncy press and release, without and with the capacitor, simulated in \name{diagrams/debounce.ipynb}. The bounce pattern is invented, and stretched so it shows at this scale. In the grey band, between 0.3 and 0.7 of the supply, the chip’s reading is undefined. How the simulation works, and its code, is in \Cref{app:simulation}.}
 \end{figure}
 
-One caveat: the \name{595}’s inputs have no hysteresis, so noise during that slow fall could in principle flick the input up and down. A Schmitt-trigger input (\name{74HC14}) prevents it. If a release ever adds a shift, that is the cause.
+One caveat: the \name{595}’s inputs have no hysteresis, so noise during that slow fall could in principle flick the input up and down. A Schmitt-trigger input (\name{74HC14}) prevents it: it has two thresholds, so a slow, noisy input switches it only once~\cite[§4.3.2B \textit{Schmitt trigger}, p.~237]{horowitz}. If a release ever adds a shift, that is the cause.
 
 \section*{Procedure}
 
@@ -115,5 +123,112 @@ Pressing \name{SRCLK} once more shifts everything along by one, but the LEDs onl
 \section*{Done when}
 
 A pattern pressed in bit by bit appears on the LEDs only on the \name{RCLK} press, and every \name{SRCLK} press moves it along by exactly one place.
+
+\appendix
+\section{The bounce simulation}\label{app:simulation}
+
+The two waveforms in the bounce figure come from \name{diagrams/debounce.ipynb}, a few lines of \name{NumPy}. It steps through 7\,ms of time, one microsecond at a time, and works out the \name{SRCLK} voltage at each step for both circuits. Then it counts the rising edges the chip would see. The code below is the notebook’s, cell by cell; only the cell that previews the plot in the notebook is left out.
+
+\subsection*{Constants}
+
+\begin{minted}{python}
+VCC = 3.3                # V
+τ = 10e3 * 100e-9 * 1e3  # ms: 10 kΩ × 100 nF
+VIL = 0.3 * VCC          # V: input low, the highest voltage a 74HC input reads as LOW
+VIH = 0.7 * VCC          # V: input high, the lowest voltage a 74HC input reads as HIGH
+DT = 0.001               # ms: simulation step, 1 µs
+t = np.arange(0, 7, DT)  # ms
+\end{minted}
+
+Times are in milliseconds throughout, so the time constant $\tau = RC = 10\,\mathrm{k}\Omega \times 100\,\mathrm{nF} = 1$\,ms is converted once, here. The two input levels come from the \name{74HC} datasheets: $V_\mathrm{IL}$ (input low) is the highest voltage the chip is sure to read as \name{LOW}, and $V_\mathrm{IH}$ (input high) the lowest it is sure to read as \name{HIGH}. At 3.3\,V they are 0.99\,V and 2.31\,V, the edges of the grey band in the figure. The time step is a thousandth of $\tau$, small enough that the curves look smooth; \texttt{t} holds the 7000 instants.
+
+\subsection*{Contacts}
+
+\begin{minted}{python}
+CLOSED = [(1.00, 1.15), (1.25, 1.35), (1.45, 1.70), (1.80, 4.00), (4.12, 4.20), (4.30, 4.36)]
+closed = np.any([(a <= t) & (t < b) for a, b in CLOSED], axis=0)
+\end{minted}
+
+The button is an ideal switch, and \texttt{CLOSED} lists the intervals during which its contacts touch: a press at 1\,ms with three bounces, held until 4\,ms, and a release with two. Each interval becomes a row of \texttt{True}/\texttt{False}, one per instant; \texttt{np.any} merges the six rows into \texttt{closed}, which is \texttt{True} whenever the contacts touch. The pattern is made up: real bounces are shorter and less regular.
+
+\subsection*{SRCLK voltage}
+
+Without the capacitor, nothing stores charge: closed, the button ties \name{SRCLK} to 3.3\,V; open, the 10\,kΩ pulls it to 0\,V. With the capacitor, the voltage also depends on its past. Two laws describe it; the code follows them.
+
+\textbf{A capacitor, briefly.} A capacitor is two metal plates with an insulator between them. Current flowing into it piles charge $q$ on the plates, and the voltage across it is proportional to that charge:
+\[ q = C v, \tag*{[C]} \]
+where $C$ is the capacitance, in farads~\cite[§1.4.1 \textit{Capacitors}, p.~18]{horowitz}\cite[§6.2 \textit{Capacitors}, p.~216]{sadiku}. Current is the rate at which charge arrives, $i = \mathrm{d}q/\mathrm{d}t$, so~\cite[§1.4.1 \textit{Capacitors}, p.~19]{horowitz}\cite[§6.2 \textit{Capacitors}, p.~218]{sadiku}\cite[§7.1 \textit{The Capacitor}, p.~224]{hayt}
+\[ i = C\,\frac{\mathrm{d}v}{\mathrm{d}t}. \tag*{[A]} \]
+Compare a resistor, where Ohm’s law ties the current to the voltage itself, $i = v/R$. For a capacitor, the current sets how fast the voltage \emph{changes}:
+\[ \frac{\mathrm{d}v}{\mathrm{d}t} = \frac{i}{C}. \tag*{[V/s]} \]
+\begin{itemize}
+  \item A steady voltage draws no current; a small current changes the voltage slowly. The capacitor remembers its voltage, and only current can change it.
+  \item Changing the voltage in an instant needs an infinite current. So the voltage across a capacitor never jumps, unless nothing limits the current.
+\end{itemize}
+Both follow straight from $i = C\,\mathrm{d}v/\mathrm{d}t$~\cite[§7.1 \textit{The Capacitor}, p.~225]{hayt}.
+
+\textbf{Discharge through the resistor.} With the contacts open, the capacitor and the 10\,kΩ are side by side, both between \name{SRCLK} and ground, so they share the voltage $v$. The capacitor’s charge has only one way out, through the resistor, so the current leaving the capacitor, $-C\,\mathrm{d}v/\mathrm{d}t$ (positive while $v$ falls), equals the current through the resistor, $v/R$:
+\[ -C\,\frac{\mathrm{d}v}{\mathrm{d}t} = \frac{v}{R}, \tag*{[A]} \]
+so
+\[ \frac{\mathrm{d}v}{\mathrm{d}t} = -\frac{v}{RC} = -\frac{v}{\tau}. \tag*{[V/s]} \]
+The higher the voltage, the larger the current and the faster the fall; as $v$ drops, the fall slows down. Starting from $v_0$, the solution is~\cite[§1.4.2 \textit{RC circuits: V and I versus time}, p.~21]{horowitz}\cite[§7.2 \textit{The Source-Free RC Circuit}, p.~255]{sadiku}\cite[§8.1 \textit{The Source-Free RC Circuit}, p.~268]{hayt}
+\[ v(t) = v_0\,\mathrm{e}^{-t/\tau}. \tag*{[V]} \]
+After one $\tau$, 37\,\% of the starting voltage is left~\cite[§7.2 \textit{The Source-Free RC Circuit}, p.~256]{sadiku}.
+
+\textbf{Time to fall.} Taking the log of both sides, $\log(v/v_0) = -t/\tau$, gives the time the voltage takes to fall from $v_0$ to $v$:
+\[ t = \tau \log\frac{v_0}{v}. \tag*{[s]} \]
+These give the numbers quoted in the Bounce section. After the release, from 3.3\,V, the voltage reaches $V_\mathrm{IH}$ = 2.31\,V after $\tau \log(3.3/2.31) \approx 0.36$\,ms and $V_\mathrm{IL}$ = 0.99\,V after $\tau \log(3.3/0.99) \approx 1.2$\,ms, so it spends about 0.85\,ms in the band. During a bounce, a gap of 0.1\,ms leaves $\mathrm{e}^{-0.1} \approx 0.90$ of the voltage, about 3\,V, far above the band.
+
+\textbf{The code.}
+
+\begin{minted}{python}
+v_pulldown = np.where(closed, VCC, 0.0)
+
+v_cap = np.zeros_like(t)
+for i in range(1, len(t)):
+    v_cap[i] = VCC if closed[i] else v_cap[i - 1] * np.exp(-DT / τ)
+\end{minted}
+
+\begin{itemize}
+  \item \texttt{v\_pulldown}, pull-down only: the voltage follows the contacts exactly, so one line does it: \texttt{np.where} picks 3.3 where \texttt{closed} is \texttt{True} and 0 elsewhere. (The chip’s own input capacitance, a few picofarads, would make the fall take tens of nanoseconds: far too fast to matter here.)
+  \item \texttt{v\_cap}, with the capacitor: the loop walks forward one step at a time. Contacts closed: the button connects the capacitor straight to 3.3\,V with no resistor in the way; nothing limits the current, so it charges at once, \texttt{VCC}. In a real circuit, the supply and the contacts have a few ohms, which makes the charge take a fraction of a microsecond: less than one simulation step. Contacts open: by $v(t)$ above, one step of $\Delta t$ multiplies the voltage by $\mathrm{e}^{-\Delta t/\tau} = \mathrm{e}^{-0.001} \approx 0.999$, which is \texttt{np.exp(-DT / τ)}. This is exact, not an approximation.
+\end{itemize}
+
+\subsection*{Rising edges}
+
+\begin{minted}{python}
+def count_rising_edges(v):
+    n, low = 0, True
+    for x in v:
+        if low and x > VIH:
+            n, low = n + 1, False
+        elif x < VIL:
+            low = True
+    return n
+
+print("rising edges, pull-down only:", count_rising_edges(v_pulldown))
+print("rising edges, with capacitor:", count_rising_edges(v_cap))
+\end{minted}
+
+It prints:
+
+\begin{minted}{text}
+rising edges, pull-down only: 6
+rising edges, with capacitor: 1
+\end{minted}
+
+Six for the pull-down only, one per closure, and one with the capacitor: the counts in the figure’s titles.
+
+Inside the band the chip’s reading is undefined, so the count plays safe. The flag \texttt{low} is \texttt{True} when the input has dropped below $V_\mathrm{IL}$ since the last edge counted. An edge counts only when the voltage climbs above $V_\mathrm{IH}$ while \texttt{low} is \texttt{True}; counting it sets \texttt{low} to \texttt{False}, and only a drop below $V_\mathrm{IL}$ sets it back to \texttt{True}. So a wobble inside the band never counts twice.
+
+This is kinder than the real chip. The \name{595} has no such memory: somewhere inside the band sits a single threshold, so noise during a slow fall could still cross it twice. That is the caveat at the end of the Bounce section.
+
+The last cell saves \texttt{[t, v\_pulldown, v\_cap]} with \texttt{np.savetxt}, every tenth instant (\texttt{[::10]}, 10\,µs apart): the data the figure plots.
+
+\begin{thebibliography}{AoE3}
+\bibitem[AoE3]{horowitz} Paul Horowitz and Winfield Hill, \textit{The Art of Electronics}, 3rd edition, Cambridge University Press, 2015.
+\bibitem[FEC5]{sadiku} Charles K. Alexander and Matthew N. O. Sadiku, \textit{Fundamentals of Electric Circuits}, 5th edition, McGraw-Hill, 2013.
+\bibitem[ECA]{hayt} William H. Hayt, Jack E. Kemmerly, Jamie D. Phillips and Steven M. Durbin, \textit{Engineering Circuit Analysis}, 10th edition, McGraw Hill, 2024.
+\end{thebibliography}
 
 \end{document}
