@@ -9,8 +9,10 @@ Schematic drawings of the front panel and of the two shift-register chips, made 
 - `first_byte.py`: the first breadboard, one byte each way on both backends sharing one DIP switch: schematic, FPGA pins, parts and test.
 - `panel_sr.py`: panel sheets for the shift-register backend: block diagram, carrier and connector, LED chain, switch chain, bit maps.
 - `panel_mcp.py`: panel sheets for the SPI-expander backend: block diagram, carrier and connector, output expander, input expander, bit maps and start-up writes.
-- `debounce.py`: the Stage 0c circuit figure, a button clocking SRCLK without and with a capacitor. `../docs/build.sh` runs it and writes it as SVG to `../docs/fig/`.
-- `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. The `.dat` is not committed: run the notebook before the first build, and again after changing the model.
+- `debounce_circuit.py`: the Stage 0c circuit figure, a button clocking SRCLK without and with a capacitor. `../docs/build.sh` runs it and writes it as SVG to `../docs/fig/`.
+- `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. The `.dat` is not committed: `../docs/build.sh` runs the notebook when the `.dat` is missing or older than it.
+- `rtl-skin.svg`: netlistsvg's default skin, plus symbols for Yosys's `$adff` and labels on flip-flops and multiplexers; `make rtl <design>` draws with it.
+- `rtl_colour.py`: colours an RTL drawing by register and writes its constants in decimal; the last step of `make rtl <design>`.
 - `kicad_sheet.py`: exports a KiCad schematic as SVG, cropped to the drawing, for the write-ups in `../docs/`.
 - `schematic.py`: shared helpers: A3 page and title block, net tags, IC and flip-flop shapes, tables, themes, PDF output.
 - `build_pdfs.py`: writes the PDFs, in the light theme by default, dark or black and white on request.
