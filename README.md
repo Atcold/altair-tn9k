@@ -44,3 +44,40 @@ uv sync
 uv tool install nbstripout
 nbstripout --install --attributes .gitattributes
 ```
+
+### FPGA tools
+
+Gowin EDA (Education edition) for the vendor flow. For the open-source flow, the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases), a nightly `.tgz` of about 0.5 GB, 2 GB unpacked: `darwin-arm64` on Apple silicon, `darwin-x64` on Intel (`uname -m` prints `arm64` or `x86_64`). The packages are unsigned, so clear macOS’s quarantine flag before unpacking, or it blocks every program:
+
+```sh
+xattr -d com.apple.quarantine oss-cad-suite-darwin-arm64-*.tgz
+tar -xzf oss-cad-suite-darwin-arm64-*.tgz -C ~/Applications
+```
+
+and put it on the `PATH`, in `~/.bashrc`, last, so tools you already have (Homebrew’s `dot`, say) keep priority over the suite’s copies:
+
+```sh
+export PATH="$PATH:$HOME/Applications/oss-cad-suite/bin"
+```
+
+The suite runs Apicula’s `gowin_pack` on its own Python, which lacks three libraries it uses for speed, and warns about each. Install them into that Python, after every new download of the suite:
+
+```sh
+~/Applications/oss-cad-suite/bin/tabbypy3 -m pip install numpy msgspec fastcrc
+```
+
+`make rtl` also needs netlistsvg, from Homebrew:
+
+```sh
+brew install netlistsvg
+```
+
+Then, in a new shell, check the tools and that the Mac sees the board, plugged in over USB:
+
+```sh
+yosys -V
+nextpnr-himbaechel --version
+openFPGALoader --detect
+```
+
+`--detect` should name the `GW1N(R)-9C`. If it finds no cable, try another USB cable: some carry power only.
