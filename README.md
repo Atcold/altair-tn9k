@@ -47,7 +47,13 @@ nbstripout --install --attributes .gitattributes
 
 ### FPGA tools
 
-Gowin EDA (Education edition) for the vendor flow. For the open-source flow, the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases), a nightly `.tgz` of about 0.5 GB, 2 GB unpacked: `darwin-arm64` on Apple silicon, `darwin-x64` on Intel (`uname -m` prints `arm64` or `x86_64`). The packages are unsigned, so clear macOS’s quarantine flag before unpacking, or it blocks every program:
+Gowin EDA (Education edition) for the vendor flow. For the open-source flow, the [OSS CAD Suite](https://github.com/YosysHQ/oss-cad-suite-build/releases), a nightly `.tgz` of about 0.5 GB, 2 GB unpacked: `darwin-arm64` on Apple silicon, `darwin-x64` on Intel (`uname -m` prints `arm64` or `x86_64`). Download the latest with the GitHub CLI, into the current folder:
+
+```sh
+gh release download -R YosysHQ/oss-cad-suite-build -p 'oss-cad-suite-darwin-arm64-*.tgz'
+```
+
+or from the releases page in a browser. The packages are unsigned, and a browser marks its downloads as quarantined, so clear that flag before unpacking, or macOS blocks every program (a `gh` download has no flag, and `xattr` says so):
 
 ```sh
 xattr -d com.apple.quarantine oss-cad-suite-darwin-arm64-*.tgz
