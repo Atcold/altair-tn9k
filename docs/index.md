@@ -4,14 +4,22 @@ One chapter per stage of the build: what to wire, why, and how to tell it works.
 
 ## Stages
 
-Stage 0a: open-source toolchain blink  
-Blink an onboard LED from one .v file through both Gowin EDA and the open-source flow.
+[Stage 0a: running LEDs, with Gowin EDA and the open-source flow](build/running-leds.pdf)  
+The old LED project rebuilt in Gowin EDA, step by step; then the same two files through the open-source flow, from a Makefile.
 
-Stage 0b: hello world on the logic analyser  
+[Stage 0b: hello world on the logic analyser](build/hello-analyser.pdf)  
 A Verilog UART sends ‘Hello world’, read back by the logic analyser’s decoder and by a serial terminal.
 
 [Stage 0c: one 74HC595 by hand](build/595-by-hand.pdf)  
 Three buttons stand in for the FPGA: shift a byte in bit by bit, then latch it onto eight LEDs.
+
+[Stage 1a: a walking bit on the 74HC595](build/595-walking-bit.pdf)  
+The FPGA takes the buttons’ place: one lit LED walks along the eight, a shift and a latch per tick.
+
+## The board
+
+[The factory program](build/factory.pdf)  
+What the board runs out of the box, why it can’t be copied, and the design that puts it back after a `make flash`.
 
 ## Schematics
 

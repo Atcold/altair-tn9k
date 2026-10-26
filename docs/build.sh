@@ -3,6 +3,7 @@
 #
 #   ./build.sh                    # every chapter
 #   ./build.sh 595-by-hand.tex    # just this one
+#   ./build.sh --dark ...         # also build/<chapter>-dark.pdf, for reading on screen
 #
 # Figures are drawn first by the scripts in ../diagrams/, and the KiCad schematics exported,
 # as SVG into fig/: the SVGs are for the web page, and rsvg-convert turns each into the PDF
@@ -11,13 +12,39 @@
 set -eu
 cd "$(dirname "$0")"
 
-../diagrams/debounce.py >/dev/null
+dark=
+if [ "${1:-}" = --dark ]; then
+    dark=1
+    shift
+fi
+
+# The bounce simulation's numbers, data/debounce.dat, which the 595-by-hand chapter plots:
+# rerun the notebook when they are missing or older than it. Jupyter's messages go to a log,
+# shown only if the notebook fails.
+if [ ! data/debounce.dat -nt ../diagrams/debounce.ipynb ]; then
+    mkdir -p build
+    uv run jupyter nbconvert --to notebook --execute --stdout \
+        ../diagrams/debounce.ipynb >/dev/null 2>build/debounce-notebook.log ||
+        { cat build/debounce-notebook.log; exit 1; }
+fi
+
+../diagrams/debounce_circuit.py >/dev/null
 ../diagrams/kicad_sheet.py ../kicad/74HC595-manual-test/74HC595-manual-test.kicad_sch fig >/dev/null
+make -s -C .. rtl led       # fig/led-rtl.svg, the RTL drawing of the running LEDs
+make -s -C .. rtl factory   # fig/factory-rtl.svg, the factory program's stand-in
 for svg in fig/*.svg; do
     rsvg-convert -f pdf -o "${svg%.svg}.pdf" "$svg"
 done
 
 latexmk -quiet "$@"
+
+# The dark copies: the same sources, with \darkmode defined first (see chapter.sty).
+if [ -n "$dark" ]; then
+    [ $# -gt 0 ] || set -- *.tex
+    for tex in "$@"; do
+        latexmk -quiet -jobname="${tex%.tex}-dark" -usepretex='\def\darkmode{}' "$tex"
+    done
+fi
 
 # index.md, the Markdown copy of the index, for GitHub. pandoc does not read chapter.sty, so
 # \name is defined for it here, as plain text.

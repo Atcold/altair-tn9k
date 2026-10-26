@@ -1,0 +1,99 @@
+% Stage 1a: the FPGA drives the Stage 0c breadboard; one lit LED walks along the 74HC595.
+% Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{minted}
+\setminted{fontsize=\footnotesize, frame=single, framerule=0.4pt, rulecolor=black!30, framesep=4pt, xleftmargin=-8pt, xrightmargin=-8pt}
+\usepackage{chapter}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{A walking bit on the \name{74HC595}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+The Stage~0c breadboard, with the FPGA in place of the three buttons. It repeats what you did by hand: put one 1 into the shift register, then shift and latch once per tick, so a single lit LED walks from \name{QA} to \name{QH}. The FPGA feeds in a new 1 every eighth tick, so the walk repeats forever.
+
+\section*{Rewiring}
+
+\begin{enumerate}
+  \item \textbf{Buttons out.} With the FPGA driving a line low, a pressed button would short its output straight to 3.3\,V. Take out the three buttons and the wires from them to the 3.3\,V rail.
+  \item \textbf{The \name{SRCLK} capacitor out.} The FPGA’s edges do not bounce, and 100\,nF would slow them. The other 100\,nF, across the chip’s supply pins 16 and 8, stays.
+  \item \textbf{The pull-downs stay.} The FPGA drives the lines much harder than 10\,kΩ pulls them, so they make no difference once it runs, and they hold the inputs low while it loads.
+  \item \textbf{Power from the Tang.} The power module out; the board’s 3V3 pin to the $+$ rail, a GND pin to the $-$ rail. One supply and one ground for both. Eight LEDs at about 4\,mA each is 32\,mA, well within what the board’s regulator can supply.\here[check regulator]
+  \item \textbf{Three wires.} Pin 25 to \name{SER} (14), pin 26 to \name{SRCLK} (11), pin 27 to \name{RCLK} (12). The \name{595} runs at 3.3\,V, so it needs 3.3\,V pins, and not every FPGA pin is: the LEDs’ and buttons’ pins run at 1.8\,V, and a 1.8\,V high is too low for the \name{595} to read as \name{HIGH}. The board’s schematic shows which are which: pins named \name{\_1V8} are 1.8\,V. Pins 25--30 are 3.3\,V and wired to nothing else on the board; 28--30 are left for the \name{74HC165} in Stage~2.
+\end{enumerate}
+
+\section*{Timing}
+
+The \name{595} needs time between the steps you pressed by hand. Its datasheet gives the minimums at 2, 4.5 and 6\,V, but not at 3.3\,V; the 2\,V figures are the safe bound (\name{SN74HC595}, −40 to 85\,°C):
+
+\begin{center}
+\begin{tabular}{ll}
+  \toprule
+  Requirement & Minimum at 2\,V \\
+  \midrule
+  \name{SER} steady before \name{SRCLK} rises & 125\,ns \\
+  \name{SRCLK} rises before \name{RCLK} rises & 94\,ns \\
+  \name{SRCLK} or \name{RCLK} high, or low & 100\,ns \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+One cycle of the 27\,MHz clock is 37\,ns: too short. So the design spaces its steps 1\,µs apart (27 cycles), eight times the longest minimum. A whole tick, set \name{SER}, shift, latch, takes 3\,µs; the LEDs then hold still for the rest of the half second.
+
+\section*{The design}
+
+\name{rtl/walk.v}:
+
+\begin{minted}{verilog}
+module walk (
+    input clk,              // 27 MHz
+    output reg ser = 0,
+    output reg srclk = 0,
+    output reg rclk = 0
+);
+
+localparam TICK = 13_500_000;  // 0.5 s at 27 MHz
+localparam STEP = 27;          // 1 µs
+
+reg [23:0] t = 0;              // time into this tick
+reg [2:0]  k = 0;              // which tick of eight: a 1 goes in on tick 0
+
+always @(posedge clk) begin
+    t <= (t == TICK - 1) ? 0 : t + 1;
+    case (t)
+        0:        ser <= (k == 0);
+        STEP:     srclk <= 1;                   // shift
+        2 * STEP: begin srclk <= 0; rclk <= 1; end  // latch
+        3 * STEP: begin rclk <= 0; k <= k + 1; end
+    endcase
+end
+
+endmodule
+\end{minted}
+
+The order is the one you pressed: \name{SER} first, then \name{SRCLK}, then \name{RCLK}. \texttt{k} counts to 7 and wraps to 0 on its own, being 3 bits wide, so every eighth tick sends in a new 1 just as the old one leaves \name{QH}.
+
+\name{constraints/walk.cst}: \texttt{clk} on 52; \texttt{ser}, \texttt{srclk}, \texttt{rclk} on 25, 26, 27, all \texttt{LVCMOS33}. Then \texttt{make flash TOP=walk}, and \texttt{make schematic TOP=walk} for its RTL drawing: a counter, three comparators and four registers.\here[figure to come]
+
+\section*{On the analyser}
+
+After Stage~0b: CH0 on \name{SER}, CH1 on \name{SRCLK}, CH2 on \name{RCLK}, GND to GND. Trigger on CH1’s rising edge, at 4\,MS/s or more. Each tick is the same three edges, 1\,µs apart; \name{SER} is high on one tick in eight. CH3 on \name{QH'} (pin 9), the bit leaving the register, shows the 1 coming out eight ticks after it went in.
+
+\section*{Done when}
+
+One lit LED walks from \name{QA} to \name{QH}, a step every half second, and starts again at \name{QA}. After the first eight ticks, any pattern the chip powered up with has gone, and exactly one LED is lit at all times.
+
+\end{document}

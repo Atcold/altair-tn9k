@@ -1,0 +1,119 @@
+% The board's factory program: why it can't be copied, the design that stands in for it, and how
+% to put the board back. Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
+
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{minted}
+\setminted{fontsize=\footnotesize, frame=single, framerule=0.4pt, rulecolor=black!30, framesep=4pt, xleftmargin=-8pt, xrightmargin=-8pt}
+\usepackage{chapter}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\title{The factory program}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+Out of the box, the board runs a program of its own: all six LEDs flash together, and holding \name{S1} freezes them. It lives in the FPGA’s built-in flash, so it starts at every power-up. Loading a design into RAM, as \texttt{make load} does, leaves it alone: the next power-up brings it back. \texttt{make flash} replaces it. This chapter is how to put it back.
+
+\section*{It can’t be copied}
+
+Three ways to read it off the board, and none works.
+
+\begin{enumerate}
+  \item \textbf{\name{openFPGALoader}’s flash dump.}
+\begin{minted}{bash}
+openFPGALoader -b tangnano9k --dump-flash --file-size 262144 dump.bin
+\end{minted}
+  It reports \name{PUYA P25Q32H}, 32\,Mbit: the board’s separate SPI flash chip, not the FPGA’s built-in flash, where the program is. Before reading, it also erases the FPGA’s RAM, so the LEDs stop until the next power-up. 262\,144 bytes, 256\,KiB, would hold one bitstream: Gowin’s binary one for this chip is 258\,574 bytes.
+  \item \textbf{Gowin’s programmer.} Its command-line version, \name{programmer\_cli} in Gowin EDA’s \name{Programmer/bin/}, lists 54 operations. For the built-in flash (\name{embFlash}) there are erase and program, but no read.
+  \item \textbf{Reading the RAM instead.} At power-up the chip copies the program from flash into RAM, and the programmer’s operation 3, \name{SRAM Read}, reads RAM back:
+\begin{minted}{bash}
+programmer_cli --device GW1NR-9C --run 3
+\end{minted}
+  It reads the whole chip, 712 frames of 2\,836 bits, the same 712 frames as a bitstream, and every bit is 1: blank. Most likely the factory bitstream was built with read-back protection, Gowin’s \emph{security bit}. It ignores \texttt{--output} on macOS and writes \name{sram\_readback.txt} inside Gowin’s app.
+\end{enumerate}
+
+Nor is the file published: Sipeed’s examples for the board~\cite{examples} hold no bitstreams, and none is described as the factory program.
+
+\section*{The stand-in}
+
+So a design that behaves the same, written from what the board does: \name{rtl/factory/factory.v}.
+
+\begin{minted}{verilog}
+module factory (
+    input sys_clk,              // 27 MHz
+    input s1,                   // S1: low while pressed
+    output reg [5:0] led = 0    // low lights an LED: all on at power-up
+);
+
+localparam TICK = 13_500_000;   // 0.5 s at 27 MHz
+
+reg [23:0] cnt = 0;
+
+always @(posedge sys_clk)
+    if (s1)                         // S1 not pressed (high): count, and flip every 0.5 s
+        if (cnt == TICK - 1) begin
+            cnt <= 0;
+            led <= ~led;            // all six at once
+        end else
+            cnt <= cnt + 1'b1;
+    // S1 pressed: nothing changes, so the LEDs hold their state
+
+endmodule
+\end{minted}
+
+The counter is the running LEDs’ one, but where those rotate \texttt{led}, this inverts all six bits at once: \texttt{\~{}led}. \name{S1} is a condition around everything: while it is pressed, neither register changes. There is no reset: the registers start from their \texttt{= 0} when the FPGA loads. The half second is a guess, matched by eye.
+
+The pins, \name{rtl/factory/factory.cst}, are those of the running LEDs, with \name{S1} on pin 4 as \texttt{s1}.
+
+\begin{figure}[H]
+  \centering
+  \colorbox{white}{\includegraphics[width=0.85\linewidth]{fig/factory-rtl.pdf}}
+  \caption{\name{factory.v}, from \texttt{make rtl factory}. Red leads to \texttt{led}, blue to \texttt{cnt}; amber is the clock, teal \texttt{s1}; constants are black.}
+\end{figure}
+
+It reads as the code, with each \texttt{if} a multiplexer, \texttt{\$mux}: when its select \texttt{S} is 0 it passes the input marked 0, when 1 the input marked 1.
+
+\begin{itemize}
+  \item \textbf{Two registers}, plain flip-flops, \texttt{\$dff}: no reset. \texttt{D} in, \texttt{Q} out, \texttt{sys\_clk} on \texttt{CLK}. On the chip, \texttt{led} becomes six \texttt{DFFE}, flip-flops with an enable, and \texttt{cnt} 24 \texttt{DFFRE}, with an enable and a synchronous reset, which acts on the clock: the multiplexers below, folded into the flip-flops.
+  \item \textbf{\texttt{led}}, top. The first multiplexer: \texttt{S} from $=$; 0, \texttt{led}; 1, \texttt{\~{}led}, from the inverter. The second: \texttt{S} from \texttt{s1}; 0, \texttt{led} again; 1, the first one’s output. So \texttt{led} flips at the end of each count, and only while \name{S1} is up: the two in a row are an AND of $=$ and \texttt{s1}.
+  \item \textbf{\texttt{cnt}}, bottom. The first multiplexer: \texttt{S} from $=$; 0, \texttt{cnt + 1}; 1, the constant 0. The second: \texttt{S} from \texttt{s1}; 0, \texttt{cnt}; 1, the first one’s output.
+  \item \textbf{On the chip} no multiplexer is left: the second of each pair, the one that keeps the old value, becomes the flip-flops’ enable; \texttt{cnt}’s first, back to 0, becomes the synchronous reset of its \texttt{DFFRE}; \texttt{led}’s first becomes look-up tables.
+  \item \textbf{$=$}, black: it compares \texttt{cnt} with 13\,499\,999 and feeds both registers’ logic, so it belongs to neither.
+\end{itemize}
+
+\section*{Steps}
+
+From the top of the repo:
+
+\begin{enumerate}
+  \item \textbf{See the original.} Unplug the board and plug it back in.
+  \item \textbf{Try the stand-in}, in RAM only:
+\begin{minted}{bash}
+make load factory
+\end{minted}
+  Compare the two: the rate of the flashing, and \name{S1} holding it. Unplugging brings the original back, for another look. If the rate differs, change \texttt{TICK}.
+  \item \textbf{Put it back}, after a \texttt{make flash} of your own:
+\begin{minted}{bash}
+make flash factory
+\end{minted}
+\end{enumerate}
+
+\textbf{Done when} the stand-in, loaded into RAM, can’t be told from the original.
+
+\begin{thebibliography}{Sipeed}
+\bibitem[Sipeed]{examples} Sipeed, \href{https://github.com/sipeed/TangNano-9K-example}{\textit{TangNano-9K-example}}, the board’s example designs.
+\end{thebibliography}
+
+\end{document}

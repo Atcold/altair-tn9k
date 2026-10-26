@@ -25,12 +25,21 @@ One chapter per stage of the build: what to wire, why, and how to tell it works.
 \section*{Stages}
 
 \begin{description}
-  \item[Stage 0a: open-source toolchain blink]
-    Blink an onboard LED from one \name{.v} file through both Gowin EDA and the open-source flow.
-  \item[Stage 0b: hello world on the logic analyser]
+  \item[\href{running-leds.pdf}{Stage 0a: running LEDs, with Gowin EDA and the open-source flow}]
+    The old LED project rebuilt in Gowin EDA, step by step; then the same two files through the open-source flow, from a \name{Makefile}.
+  \item[\href{hello-analyser.pdf}{Stage 0b: hello world on the logic analyser}]
     A Verilog UART sends ‘Hello world’, read back by the logic analyser’s decoder and by a serial terminal.
   \item[\href{595-by-hand.pdf}{Stage 0c: one \name{74HC595} by hand}]
     Three buttons stand in for the FPGA: shift a byte in bit by bit, then latch it onto eight LEDs.
+  \item[\href{595-walking-bit.pdf}{Stage 1a: a walking bit on the \name{74HC595}}]
+    The FPGA takes the buttons’ place: one lit LED walks along the eight, a shift and a latch per tick.
+\end{description}
+
+\section*{The board}
+
+\begin{description}
+  \item[\href{factory.pdf}{The factory program}]
+    What the board runs out of the box, why it can’t be copied, and the design that puts it back after a \texttt{make flash}.
 \end{description}
 
 \section*{Schematics}
