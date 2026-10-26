@@ -3,7 +3,6 @@
 #
 #   ./build.sh                    # every chapter
 #   ./build.sh 595-by-hand.tex    # just this one
-#   ./build.sh --dark ...         # also build/<chapter>-dark.pdf, for reading on screen
 #
 # Figures are drawn first by the scripts in ../diagrams/, and the KiCad schematics exported,
 # as SVG into fig/: the SVGs are for the web page, and rsvg-convert turns each into the PDF
@@ -11,12 +10,6 @@
 
 set -eu
 cd "$(dirname "$0")"
-
-dark=
-if [ "${1:-}" = --dark ]; then
-    dark=1
-    shift
-fi
 
 # The bounce simulation's numbers, data/debounce.dat, which the 595-by-hand chapter plots:
 # rerun the notebook when they are missing or older than it. Jupyter's messages go to a log,
@@ -37,14 +30,6 @@ for svg in fig/*.svg; do
 done
 
 latexmk -quiet "$@"
-
-# The dark copies: the same sources, with \darkmode defined first (see chapter.sty).
-if [ -n "$dark" ]; then
-    [ $# -gt 0 ] || set -- *.tex
-    for tex in "$@"; do
-        latexmk -quiet -jobname="${tex%.tex}-dark" -usepretex='\def\darkmode{}' "$tex"
-    done
-fi
 
 # index.md, the Markdown copy of the index, for GitHub. pandoc does not read chapter.sty, so
 # \name is defined for it here, as plain text.

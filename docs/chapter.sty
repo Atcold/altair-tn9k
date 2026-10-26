@@ -14,19 +14,6 @@
 \AtBeginDocument{\@ifpackageloaded{hyperref}{%
   \hypersetup{linkcolor=link, urlcolor=link, filecolor=link, citecolor=link}}{}}
 
-% Dark pages, for reading on screen: ./build.sh --dark defines \darkmode before the document.
-% Text, rules and TikZ drawings take the light text colour; code takes Pygments' monokai.
-\ifdefined\darkmode
-  \definecolor{darkpage}{HTML}{1E1E1E}
-  \definecolor{darktext}{HTML}{D4D4D4}
-  \definecolor{darklink}{HTML}{8AB4F8}
-  \AtBeginDocument{%
-    \pagecolor{darkpage}\color{darktext}%
-    \let\default@color\current@color  % floats and captions reset to this colour, not to black
-    \@ifpackageloaded{hyperref}{\hypersetup{linkcolor=darklink, urlcolor=darklink, filecolor=darklink, citecolor=darklink}}{}%
-    \@ifpackageloaded{minted}{\setminted{style=monokai, rulecolor=white!30}}{}}
-\fi
-
 % Names of things (chips, pins, files, folders, programs) in sans; \texttt only for literal text.
 % The sans underscore is a third wider than a letter; inside \name it is as wide as a space.
 \newcommand{\name@us}{\leavevmode\rule[-0.164em]{\fontdimen2\font}{0.075em}}
