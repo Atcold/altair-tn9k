@@ -53,10 +53,9 @@ Gowin EDA (Education edition) for the vendor flow. For the open-source flow, the
 gh release download -R YosysHQ/oss-cad-suite-build -p 'oss-cad-suite-darwin-arm64-*.tgz'
 ```
 
-or from the releases page in a browser. The packages are unsigned, and a browser marks its downloads as quarantined, so clear that flag before unpacking, or macOS blocks every program (a `gh` download has no flag, and `xattr` says so):
+then unpack it:
 
 ```sh
-xattr -d com.apple.quarantine oss-cad-suite-darwin-arm64-*.tgz
 tar -xzf oss-cad-suite-darwin-arm64-*.tgz -C ~/Applications
 ```
 
