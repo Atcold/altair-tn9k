@@ -35,3 +35,22 @@ latexmk -quiet "$@"
 # \name is defined for it here, as plain text.
 { printf '\\newcommand{\\name}[1]{#1}\n'; cat index.tex; } |
     pandoc -f latex -t gfm --wrap=none --lua-filter=index-md.lua -o index.md
+
+# Send each chapter's PDF to the review folder named in .review-dir, a one-line file kept out of
+# git, when there is one. build/sent/ holds the copy last sent: a PDF in the review folder that
+# differs from it has changed there, so it may carry annotations, and is kept.
+review=$(cat .review-dir 2>/dev/null || true)
+if [ -n "$review" ]; then
+    mkdir -p build/sent
+    for tex in ${@:-*.tex}; do
+        name=$(basename "$tex" .tex).pdf
+        [ "$name" = index.pdf ] && continue
+        if [ -f "$review/$name" ] && ! cmp -s "$review/$name" "build/sent/$name"; then
+            echo "kept $review/$name: changed since it was sent, so it may carry annotations"
+            continue
+        fi
+        cmp -s "build/$name" "$review/$name" || {
+            cp "build/$name" "$review/$name" && cp "build/$name" "build/sent/$name" && echo "sent $name"
+        }
+    done
+fi

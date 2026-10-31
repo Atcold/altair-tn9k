@@ -7,6 +7,7 @@ digital/s2p-74HC595-animation.hex
 *.pdf
 docs/fig/
 docs/data/
+docs/.review-dir
 
 # KiCad
 *-backups/
