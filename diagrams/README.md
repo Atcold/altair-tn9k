@@ -6,9 +6,8 @@ Schematic drawings of the front panel and of the two shift-register chips, made 
 
 - `schematics.ipynb`: shows every sheet, one per cell, in the dark theme, in build order.
 - `chips.py`: the 74HC595 and 74HC165 at flip-flop level, with their function tables and pinouts. Build them in Digital first.
-- `first_byte.py`: the first breadboard, one byte each way on both backends sharing one DIP switch: schematic, FPGA pins, parts and test.
-- `panel_sr.py`: panel sheets for the shift-register backend: block diagram, carrier and connector, LED chain, switch chain, bit maps.
-- `panel_mcp.py`: panel sheets for the SPI-expander backend: block diagram, carrier and connector, output expander, input expander, bit maps and start-up writes.
+- `first_byte.py`: the first breadboard, one byte each way through a 74HC595 and a 74HC165: schematic, FPGA pins, parts and test.
+- `panel_sr.py`: panel sheets: block diagram, carrier and connector, LED chain, switch chain, bit maps.
 - `debounce_circuit.py`: the Stage 0c circuit figure, a button clocking SRCLK without and with a capacitor. `../docs/build.sh` runs it and writes it as SVG to `../docs/fig/`.
 - `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. The `.dat` is not committed: `../docs/build.sh` runs the notebook when the `.dat` is missing or older than it.
 - `rtl-skin.svg`: netlistsvg's default skin, plus symbols for Yosys's `$adff` and labels on flip-flops and multiplexers; `make rtl <design>` draws with it.
@@ -31,16 +30,15 @@ Parts and wires are placed by coordinates, so after a change, look at the sheet 
 ./build_pdfs.py --mono   # black and white, for black-and-white printers or e-ink readers
 ```
 
-Either command writes four PDFs to `../docs/build/`:
+Either command writes three PDFs to `../docs/build/`:
 
 - `74hc595-74hc165-internals.pdf`: the three chip sheets
 - `altair-first-byte-schematic.pdf`: the first breadboard, two sheets
-- `altair-panel-sr-schematic.pdf`: the five panel sheets, shift-register backend
-- `altair-panel-mcp-schematic.pdf`: the five panel sheets, SPI-expander backend
+- `altair-panel-sr-schematic.pdf`: the five panel sheets
 
 With `--dark` or `--mono`, the file names end in `-dark` or `-mono`.
 
-Colours mark the kind of net: red supply, blue ground, amber clocks, green shift-register signals, purple SPI signals, teal shared switch lines; on the chip internals, green data path and pink control lines.
+Colours mark the kind of net: red supply, blue ground, amber clocks, green shift-register signals, teal switch lines; on the RTL drawings, purple resets; on the chip internals, green data path and pink control lines.
 
 ## Limits
 

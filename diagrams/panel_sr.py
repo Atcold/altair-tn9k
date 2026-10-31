@@ -1,4 +1,4 @@
-"""Panel schematic sheets for the shift-register backend (5x 74HC595, 4x 74HC165).
+"""Panel schematic sheets: the front panel through shift registers (5x 74HC595, 4x 74HC165).
 
 Each sheet_* function returns one A3 figure. SHEETS lists them in PDF order.
 """

@@ -32,7 +32,7 @@ One chapter per stage of the build: what to wire, why, and how to tell it works.
   \item[\href{595-by-hand.pdf}{Stage 0c: one \name{74HC595} by hand}]
     Three buttons stand in for the FPGA: shift a byte in bit by bit, then latch it onto eight LEDs.
   \item[\href{595-walking-bit.pdf}{Stage 1a: a walking bit on the \name{74HC595}}]
-    The FPGA takes the buttons’ place: one lit LED walks along the eight, a shift and a latch per tick.
+    The FPGA takes the buttons’ place: one lit LED walks forward a bit at a time, then backward a byte at a time.
 \end{description}
 
 \section*{The board}
@@ -46,11 +46,10 @@ One chapter per stage of the build: what to wire, why, and how to tell it works.
 
 \begin{itemize}
   \item \href{74hc595-74hc165-internals.pdf}{The \name{74HC595} and \name{74HC165} at flip-flop level}
-  \item \href{altair-first-byte-schematic.pdf}{First byte: both backends on one breadboard}
-  \item \href{altair-panel-sr-schematic.pdf}{Panel, shift-register backend}
-  \item \href{altair-panel-mcp-schematic.pdf}{Panel, SPI-expander backend}
+  \item \href{altair-first-byte-schematic.pdf}{First byte: one byte in, one byte out}
+  \item \href{altair-panel-sr-schematic.pdf}{Panel}
 \end{itemize}
 
-The parts list for both backends is \name{docs/parts.md} in the repo.
+The parts list is \name{docs/parts.md} in the repo.
 
 \end{document}

@@ -21,25 +21,25 @@ AUTHOR = "Alfredo Canziani"
 FS = 9
 
 # ---------------------------------------------------------------- themes
-# Net colours: supply, ground, clocks, shift-register signals, SPI signals, the shared switch
-# lines, chip-internal data and control, LEDs.
+# Net colours: supply, ground, clocks, shift-register signals, RTL resets, the switch lines,
+# chip-internal data and control, LEDs.
 #   light: dark shades on white, for the PDFs
 #   dark:  bright shades on dark grey, for the notebook
 #   mono:  all black on white, block fills blank, for black-and-white printers
 THEMES = {
     "light": dict(FG="black", BG="white", MUTED="#555555", HDR="#eeeeee", RIBBON="#a06000", FILL={},
-                  SUPPLY="#c62828", GROUND="#1f4e79", CLOCK="#b36b00", SR="#2e7d32", MCP="#6a1b9a",
+                  SUPPLY="#c62828", GROUND="#1f4e79", CLOCK="#b36b00", SR="#2e7d32", RESET="#6a1b9a",
                   SHARED="#00838f", DATA="#4d7c0f", CONTROL="#ad1457", LED="#d32f2f"),
     "dark": dict(FG="#e6e6e6", BG="#1b1d21", MUTED="#9aa0a6", HDR="#33363c", RIBBON="#c88a2a",
                  FILL={"#f2f2f2": "#2a2d33", "#e8f0fb": "#1f3048", "#fff6e0": "#45391c",
                        "#f7f7f7": "#2a2d33", "#eaf7ea": "#1f3a26", "#eaf0fb": "#1f2c45",
                        "#ffffff": "#25282d"},
-                 SUPPLY="#ff6b6b", GROUND="#8fa3bf", CLOCK="#ffc857", SR="#7bd88f", MCP="#c49bff",
+                 SUPPLY="#ff6b6b", GROUND="#8fa3bf", CLOCK="#ffc857", SR="#7bd88f", RESET="#c49bff",
                  SHARED="#5ccfe6", DATA="#9ece6a", CONTROL="#ff8fc6", LED="#ff5050"),
     "mono": dict(FG="black", BG="white", MUTED="#555555", HDR="#eeeeee", RIBBON="#777777",
                  FILL={c: "#ffffff" for c in ("#f2f2f2", "#e8f0fb", "#fff6e0", "#f7f7f7",
                                               "#eaf7ea", "#eaf0fb")},
-                 SUPPLY="black", GROUND="black", CLOCK="black", SR="black", MCP="black",
+                 SUPPLY="black", GROUND="black", CLOCK="black", SR="black", RESET="black",
                  SHARED="black", DATA="black", CONTROL="black", LED="black"),
 }
 T = SimpleNamespace(name="light")  # current theme; sheets read T.FG, T.MUTED, ...
@@ -192,16 +192,14 @@ def visible(text):
 
 
 def net_colour(text):
-    """Colour for a net, from its name: clocks first, then which backend it belongs to."""
+    """Colour for a net, from its name: clocks first, then switch lines and shift-register signals."""
     name = visible(text)
-    if re.search(r"CLK|SCK", name):
+    if re.search(r"CLK", name):
         return T.CLOCK
     if re.match(r"S[WA]\d", name):  # switch lines
         return T.SHARED
     if re.match(r"(LED_|SW_)", name):
         return T.SR
-    if name.startswith("SPI_"):
-        return T.MCP
     if re.match(r"(SRCLR|OE|SH/LD|LOAD)", name):  # chip-internal control
         return T.CONTROL
     if re.match(r"(SER|Q[A-H]|[A-H] \(|shift |stage |from |to )", name):  # chip-internal data path

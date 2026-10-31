@@ -1,8 +1,8 @@
 # Parts
 
-Quantities cover the breadboard stages and the final panel for both backends, plus spares.
+Quantities cover the breadboard stages and the final panel, plus spares.
 
-## Shift-register backend (sr)
+## Shift registers
 
 | Part | Needed | Order | Notes |
 |---|---|---|---|
@@ -12,15 +12,6 @@ Quantities cover the breadboard stages and the final panel for both backends, pl
 | DIP-16 sockets | 9 | 12 | Swap dead chips without desoldering |
 | 33 Ω resistors | 5 | 10 | Series resistors on the carrier, one per FPGA output |
 
-## SPI-expander backend (mcp)
-
-| Part | Needed | Order | Notes |
-|---|---|---|---|
-| MCP23S17-E/SP (DIP-28) | 5 | 7 | 16-bit SPI I/O expanders |
-| DIP-28 sockets (0.3″) | 5 | 7 | |
-| 10 kΩ resistors | 1 | 10 | Shared RESET pull-up |
-| 33 Ω resistors | 3 | (above) | Series resistors on SCK, MOSI, CS_n |
-
 ## Common
 
 | Part | Needed | Order | Notes |
@@ -28,7 +19,7 @@ Quantities cover the breadboard stages and the final panel for both backends, pl
 | 5 mm red LEDs | 36 | 50 | |
 | 1 kΩ resistors | 36 | 100 | Default LED current, ≈ 1.3 mA |
 | 470 Ω resistors | 36 | 100 | Brighter option, ≈ 3 mA |
-| 100 nF ceramic capacitors | 16 | 25 | One per chip (9 sr + 5 mcp) and one per connector |
+| 100 nF ceramic capacitors | 11 | 25 | One per chip (9) and one per connector |
 | 10 µF capacitors | 2 | 5 | Bulk decoupling, one per connector |
 | 2×7 IDC box headers, 2.54 mm | 2 | 4 | J1 on the carrier, J2 on the panel |
 | 14-way IDC sockets | 2 | 4 | Crimped onto the ribbon |
@@ -57,7 +48,7 @@ Quantities cover the breadboard stages and the final panel for both backends, pl
 
 | Group | Approx. cost |
 |---|---|
-| Everything except toggles, both backends | $50–75 |
+| Everything except toggles | $40–60 |
 | Toggles, cheap (~$1 each) | ~$30 |
 | Toggles, decent, e.g. C&K 7000 series ($5–10 each) | $150–280 |
 | Spare Tang Nano 9K | ~$20 |

@@ -23,9 +23,9 @@ from schematic import T
 # Registers take these in the order the Verilog declares them; the rest are black. Hues far
 # apart, red against blue first, since thin lines at figure size blur close ones together.
 REGISTERS = [T.LED, T.GROUND, T.SHARED, T.RIBBON]
-CLOCK, RESET, INPUT = T.CLOCK, T.MCP, T.SHARED  # inputs: by what they drive
+CLOCK, RESET, INPUT = T.CLOCK, T.RESET, T.SHARED  # inputs: by what they drive
 TINT = {T.LED: "#fdecea", T.GROUND: "#e8f0fb", T.SHARED: "#e0f4f6", T.RIBBON: "#f6ecdc",
-        T.CLOCK: "#fff6e0", T.MCP: "#f3e8fb"}  # box fills
+        T.CLOCK: "#fff6e0", T.RESET: "#f3e8fb"}  # box fills
 WIDTH = 1  # coloured lines, as the skin's black ones
 
 
