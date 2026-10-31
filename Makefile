@@ -41,6 +41,7 @@ flash: build/$(TOP).fs
 rtl: $(SRC)/$(TOP).v
 	mkdir -p build docs/fig
 	yosys -q -p "read_verilog $<; prep -top $(TOP); write_json build/$(TOP)-rtl.json"
+	diagrams/rtl_ties.py build/$(TOP)-rtl.json
 	netlistsvg build/$(TOP)-rtl.json --skin diagrams/rtl-skin.svg -o docs/fig/$(TOP)-rtl.svg
 	diagrams/rtl_colour.py build/$(TOP)-rtl.json docs/fig/$(TOP)-rtl.svg
 

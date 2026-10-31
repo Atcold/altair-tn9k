@@ -82,7 +82,9 @@ def groups(module):
         return found
 
     for name, cell in cells.items():
-        if not is_register(cell):
+        if cell["type"] == "$tie":  # a constant, from rtl_ties.py: a value, not a signal
+            colour[name] = T.FG
+        elif not is_register(cell):
             r = reached(name, {name})
             colour[name] = r.pop() if len(r) == 1 else T.FG
 

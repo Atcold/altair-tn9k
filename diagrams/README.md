@@ -11,6 +11,7 @@ Schematic drawings of the front panel and of the two shift-register chips, made 
 - `debounce_circuit.py`: the Stage 0c circuit figure, a button clocking SRCLK without and with a capacitor. `../docs/build.sh` runs it and writes it as SVG to `../docs/fig/`.
 - `debounce.ipynb`: simulates the SRCLK voltage for a bouncy press and release, without and with the capacitor, and counts the rising edges; writes `../docs/data/debounce.dat`, which the Stage 0c chapter plots with pgfplots. The `.dat` is not committed: `../docs/build.sh` runs the notebook when the `.dat` is missing or older than it.
 - `rtl-skin.svg`: netlistsvg's default skin, plus symbols for Yosys's `$adff` and labels on flip-flops and multiplexers; `make rtl <design>` draws with it.
+- `rtl_ties.py`: gives every constant in the RTL netlist its own driver, so `make rtl <design>` draws each next to the input it feeds; netlistsvg alone merges identical ones into one node.
 - `rtl_colour.py`: colours an RTL drawing by register and writes its constants in decimal; the last step of `make rtl <design>`.
 - `kicad_sheet.py`: exports a KiCad schematic as SVG, cropped to the drawing, for the write-ups in `../docs/`.
 - `schematic.py`: shared helpers: A3 page and title block, net tags, IC and flip-flop shapes, tables, themes, PDF output.
