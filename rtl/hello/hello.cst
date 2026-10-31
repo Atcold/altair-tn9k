@@ -1,0 +1,11 @@
+// The 27 MHz clock, the line to the USB-serial bridge, and two 3.3 V header pins for the analyser;
+// from the board's schematic.
+
+IO_LOC "sys_clk" 52;
+IO_PORT "sys_clk" IO_TYPE=LVCMOS33 PULL_MODE=UP BANK_VCCIO=3.3;
+IO_LOC "tx" 17;
+IO_PORT "tx" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "tx_probe" 31;
+IO_PORT "tx_probe" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
+IO_LOC "busy" 32;
+IO_PORT "busy" IO_TYPE=LVCMOS33 PULL_MODE=NONE DRIVE=8 BANK_VCCIO=3.3;
