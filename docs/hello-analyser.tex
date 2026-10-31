@@ -1,4 +1,4 @@
-% Stage 0b: a Verilog UART sends 'Hello world', read by the logic analyser and a serial terminal.
+% a Verilog UART sends 'Hello world', read by the logic analyser and a serial terminal.
 % Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
 
 \documentclass[11pt,a4paper]{article}
@@ -11,6 +11,7 @@
 \usepackage{minted}
 \setminted{fontsize=\footnotesize, frame=single, framerule=0.4pt, rulecolor=black!30, framesep=4pt, xleftmargin=-8pt, xrightmargin=-8pt}
 \usepackage{chapter}
+\definecolor{clock}{HTML}{B36B00}  % the schematics' clock-net amber
 \usepackage[colorlinks=true,linkcolor=blue!50!black,urlcolor=blue!50!black]{hyperref}
 
 \setlength{\parindent}{0pt}
@@ -23,121 +24,300 @@
 \begin{document}
 \maketitle
 
-The logic analyser gets checked on a signal whose meaning is known before Stage~1 relies on it. The FPGA sends \texttt{Hello world} over a serial line ten times a second. The analyser decodes it; a terminal on the Mac, reading the same line through the board’s USB-serial bridge, prints it. If the two agree, the analyser, its software and the probing are right.
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[box/.style={draw, thick, align=center, font=\small},
+      wire/.style={->}, lbl/.style={font=\scriptsize\sffamily, above, inner sep=1.5pt}]
+    \node[box, minimum width=2.8cm, minimum height=1.5cm] (fpga) at (0,0) {Tang Nano 9K\\[0.2em]\scriptsize sends \texttt{Hello world}};
+    \node[box, minimum width=2.2cm, minimum height=1.5cm] (la) at (5,0) {logic\\analyser};
+    \node[box, minimum width=2.4cm, minimum height=3.4cm] (mac) at (9.4,0.95) {Mac\\[0.6em]\scriptsize Logic~2\\[0.2em]\scriptsize and a terminal};
+    \draw[wire] (1.4,0.3) -- node[lbl] {CH0: the line} (3.9,0.3);
+    \draw[wire] (1.4,-0.3) -- node[lbl] {CH1: trigger} (3.9,-0.3);
+    \draw[wire] (6.1,0) -- node[lbl] {USB} (8.2,0);
+    \draw[wire] (0,0.75) |- node[lbl, pos=0.75] {USB: the same line, through the board’s bridge} (8.2,2.1);
+  \end{tikzpicture}
+\end{figure}
 
-\section*{The serial line}
+The logic analyser is the tool that shows what travels on a wire. This lesson connects it to the board and checks it on a signal whose meaning is known. The FPGA sends \texttt{Hello world} over a serial line ten times a second, and the message travels on two paths. Through the analyser’s probes, Logic~2 decodes it on the Mac. Through the board’s own USB cable, a terminal prints it. If the two agree, the analyser, its software, and the probing are right.
 
-A UART sends one byte as a frame of ten bits, each lasting the same time. The line rests high. A low \emph{start} bit marks the beginning; then the eight data bits, lowest first; then a high \emph{stop} bit, after which the line can rest or the next start bit follow. Nothing marks the bits themselves: the receiver times them from the start bit’s falling edge. This is \emph{8N1}: 8 data bits, no parity, 1 stop bit.
+\section*{Wiring}
 
 \begin{figure}[H]
   \centering
-  \begin{tikzpicture}[x=1.1cm, y=0.7cm]
-    \foreach \v [count=\i from 0, remember=\v as \p (initially 1)] in {1,0,0,0,0,1,0,0,1,0,1,1}
-      \draw[thick] (\i,\p) -- (\i,\v) -- (\i+1,\v);
-    \foreach \l [count=\i from 0] in {rest, start, 0, 0, 0, 1, 0, 0, 1, 0, stop, rest}
-      \node[font=\scriptsize] at (\i+0.5,-0.5) {\l};
-    \foreach \i in {1,...,11}
-      \draw[black!20] (\i,-0.2) -- (\i,1.2);
-  \end{tikzpicture}
-  \caption{The frame for \texttt{H}, \texttt{0x48} = \texttt{01001000}, sent lowest bit first.}
+  \begin{minipage}[c]{0.77\linewidth}
+  \centering
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+      port/.style={font=\footnotesize\ttfamily},
+      pin/.style={font=\scriptsize, above, inner sep=1.5pt},
+      blk/.style={draw, thick, align=center, font=\small, minimum height=0.9cm},
+      hdr/.style={draw, fill=white, circle, inner sep=1.6pt},
+      title/.style={font=\small\bfseries, inner sep=3pt}]
+    % the development board, and the FPGA on it
+    \draw[black!45, rounded corners=3pt] (-3.6,-2.5) rectangle (5.6,2.7);
+    \node[title, anchor=south west] at (-3.6,-2.5) {Tang Nano 9K};
+    \draw[thick] (-1.8,-1.7) rectangle (1.8,2.2);
+    \node[title, anchor=north] at (0,2.2) {\name{GW1NR-9}};
+    \node[port, anchor=west] at (-1.75,0) {sys\_clk};
+    \node[port, anchor=east] at (1.75,1.5) {tx};
+    \node[port, anchor=east] at (1.75,-0.2) {tx\_probe};
+    \node[port, anchor=east] at (1.75,-1.0) {busy};
+    % the 27 MHz crystal, and the FPGA pin numbers where each wire leaves the chip
+    \pic at (-2.9,0) {crystal};
+    \node[font=\scriptsize, below] at (-2.9,-0.4) {27\,MHz};
+    \draw[->] (-2.6,0) -- (-1.8,0);
+    \node[pin] at (-2.1,0) {52};
+    \node[blk, anchor=west] (usb) at (2.7,1.5) {\name{BL702}\\[-0.1em]\scriptsize USB-serial bridge};
+    \draw[->] (1.8,1.5) -- (usb);
+    \node[pin] at (2.1,1.5) {17};
+    \draw[->] (1.8,-0.2) -- (6.5,-0.2);
+    \node[pin] at (2.1,-0.2) {31};
+    \draw[->] (1.8,-1.0) -- (6.5,-1.0);
+    \node[pin] at (2.1,-1.0) {32};
+    \draw (5.6,-1.8) -- (6.5,-1.8);
+    % header pins on the board's edge, named as in the board figure
+    \foreach \y/\l in {-0.2/R21, -1.0/R22, -1.8/R23} {
+      \node[hdr] at (5.6,\y) {};
+      \node[pin, anchor=south west] at (5.7,\y) {\name{\l}};
+    }
+    % off the board: the Mac above the analyser
+    \node[blk, minimum width=2.0cm] (mac) at (7.5,1.5) {Mac\\terminal};
+    \draw[->] (usb) -- node[font=\scriptsize\itshape, above, pos=0.55] {USB} (mac);
+    \draw[thick] (6.5,-2.2) rectangle (8.5,0.55);
+    \node[font=\small, anchor=north, align=center, inner sep=2pt] at (7.5,0.55) {analyser};
+    \node[font=\footnotesize, anchor=west] at (6.6,-0.2) {\name{CH0}};
+    \node[font=\footnotesize, anchor=west] at (6.6,-1.0) {\name{CH1}};
+    \node[font=\footnotesize, anchor=west] at (6.6,-1.8) {\name{GND}};
+  \end{tikzpicture}}
+  \end{minipage}\hfill
+  \begin{minipage}[c]{0.2\linewidth}
+  \centering
+  \boardpins{r/21/R21/-1, r/22/R22/0, r/23/R23/1}
+  \end{minipage}
+  \caption{Left: the \name{GW1NR-9} is the board’s FPGA chip. Inside its box are the design’s port names, and on its edge are the chip’s pin numbers, which the \name{.cst} file uses. On the board’s edge are the header pins that the wires plug into. The analyser is a HiLetgo clone of the Saleae Logic. Right: the same header pins on the board, seen from above with the USB-C connector at the top~\cite{topview}. R is the right-hand row. Its pins are counted from the USB-C end, where pin 1 of each row has a square pad. \name{R23} is \name{GND}~\cite[p.~2]{schematic}.}
 \end{figure}
 
-At 115\,200 baud a bit lasts 8.68\,µs. The FPGA counts it out from its 27\,MHz clock: 27\,000\,000 / 115\,200 = 234.375, so 234 cycles per bit, which is 0.16\,\% fast. The receiver samples each bit near its middle, so errors add up along the frame: by the stop bit, ten bits in, the sample has drifted 1.6\,\% of a bit. A few per cent is fine.
+Three wires connect the board to the analyser, and \name{GND} goes first. \name{R23} goes to the analyser’s \name{GND}, \name{R21} (FPGA pin 31) to \name{CH0}, and \name{R22} (FPGA pin 32) to \name{CH1}. Pins 31 and 32 are 3.3\,V pins. The analyser triggers on \texttt{busy}, so a capture that starts on its rising edge starts on the first \texttt{H}.
 
-\section*{Pins}
+\section*{What the FPGA sends}
 
-\begin{center}
-\begin{tabular}{lll}
-  \toprule
-  Port & Pin & Goes to \\
-  \midrule
-  \texttt{tx} & 17 & the USB-serial bridge, so the Mac’s terminal \\
-  \texttt{tx\_probe} & 19 & analyser CH0: the same signal, on a header pin \\
-  \texttt{busy} & 20 & analyser CH1: high while the message goes out \\
-  GND & GND & analyser GND \\
-  \bottomrule
-\end{tabular}
-\end{center}
+The FPGA sends the 13 characters of \texttt{Hello world\textbackslash r\textbackslash n} one after another on \texttt{tx}. Each character goes out as a UART frame, and each bit of the frame lasts 234 clock cycles. \texttt{busy} is high for the whole message, so the analyser knows when to start. Then the FPGA rests for 100\,ms and starts again. To do this, it keeps track of three things: which character is next, which bit of its frame is on the line, and how long the current bit, or the rest, has lasted.
 
-All three are 3.3\,V pins. \texttt{busy} is the trigger: a capture that starts on its rising edge starts on the first \texttt{H}.
+\subsection*{One message, then rest}
 
-\section*{The design}
+\begin{figure}[H]
+  \centering
+  \begin{tikztimingtable}[timing/slope=0.1, xscale=1.35, yscale=1.4, timing/name/.style={font=\small\ttfamily},
+      timing/d/text/.style={font=\scriptsize\ttfamily}]
+    busy & L 13H 4L H \\
+    tx   & H D{H}D{e}D{l}D{l}D{o}D{\textvisiblespace}D{w}D{o}D{r}D{l}D{d}D{\textbackslash r}D{\textbackslash n} 4H D{H} \\
+  \extracode
+    \foreach \y in {0.5,-1.5} \node[fill=white, inner sep=1pt, font=\small] at (16,\y) {//};
+    \draw[<->] (1.05,-3.3) -- node[below, font=\scriptsize] {1.13\,ms: 13 frames} (14.05,-3.3);
+    \draw[<->] (14.05,-3.3) -- node[below, font=\scriptsize] {100\,ms} (18.05,-3.3);
+  \end{tikztimingtable}
+  \caption{The message is 13 frames sent back to back, one per character. \texttt{busy} is high from the first start bit to the last stop bit. Then the line rests high for 100\,ms. The rest is cut short here; drawn to scale, it would be 90 times as long as the message.}
+\end{figure}
 
-\name{rtl/hello.v}:
+\subsection*{One character: a frame}
 
-\begin{minted}{verilog}
-module hello (
-    input clk,              // 27 MHz
-    output tx,              // to the USB-serial bridge
-    output tx_probe,        // the same, for CH0
-    output reg busy = 0     // high during the message, for CH1
-);
+A UART sends one byte as a frame of ten bits, each lasting the same time. The line rests high. A low \emph{start} bit marks the beginning. The eight data bits follow, lowest first, and then a high \emph{stop} bit. After the stop bit, the line can rest, or the next start bit can follow. Nothing marks the bits themselves; the receiver times them from the start bit’s falling edge. This format is called \emph{8N1}: 8 data bits, no parity, and 1 stop bit.
 
-localparam BAUD = 234;                                // 27 MHz / 115200 = 234.375
-localparam GAP  = 2_700_000;                          // 100 ms
-localparam N    = 13;                                 // characters
-localparam [8*N-1:0] MSG = {"Hello world", 8'h0d, 8'h0a};  // \r\n: Verilog has no \r
+\begin{figure}[H]
+  \centering
+  \begin{tikztimingtable}[timing/slope=0.1, xscale=2.2, yscale=1.5, timing/name/.style={font=\small\ttfamily}]
+    tx & H L L L L H L L H L H H \\
+  \extracode
+    \vertlines[black!20]{1.05,2.05,...,11.05}  % through each edge's midpoint: the slope is 0.1
+    \foreach \l [count=\i from 0] in {rest, start, 0, 0, 0, 1, 0, 0, 1, 0, stop, rest}
+      \node[font=\scriptsize] at (\i+0.55,-1.4) {\l};
+  \end{tikztimingtable}
+  \caption{The frame for \texttt{H}. \texttt{H} is \texttt{0x48}, which is \texttt{01001000} in binary, and its lowest bit is sent first.}
+\end{figure}
 
-reg [9:0]  frame = 10'h3ff;  // the bits still to send, lowest first; all 1: the line rests high
-reg [3:0]  left  = 0;        // bits left in this frame
-reg [8:0]  baud  = 0;        // clock cycles into this bit
-reg [3:0]  i     = 0;        // next character
-reg [21:0] t     = 0;        // time resting between messages
+At 115\,200 baud, which here means 115\,200 bits per second, a bit lasts 8.68\,µs. That is 234 cycles of the 27\,MHz clock (27\,000\,000 / 115\,200 = 234.375). The FPGA’s bits are therefore 0.16\,\% short, which is well within what a receiver tolerates.
 
-assign tx = frame[0];
-assign tx_probe = frame[0];
+\subsection*{Reading first}
 
-always @(posedge clk)
-    if (!busy) begin                        // resting
-        if (t == GAP - 1) begin
-            t <= 0;
-            i <= 0;
-            busy <= 1;
-        end else
-            t <= t + 1;
-    end else if (left == 0) begin           // frame done: load the next, or stop
-        if (i == N)
-            busy <= 0;
-        else begin
-            frame <= {1'b1, MSG[8*(N-1-i) +: 8], 1'b0};  // stop, data, start
-            left <= 10;
-            baud <= 0;
-            i <= i + 1;
-        end
-    end else if (baud == BAUD - 1) begin    // bit done: shift in a 1, the resting level
-        baud <= 0;
-        frame <= {1'b1, frame[9:1]};
-        left <= left - 1;
-    end else
-        baud <= baud + 1;
+The design is a \emph{finite state machine}. Before the diagram and the Verilog below, read these sections of Harris and Harris~\cite{ddca}:
+\begin{enumerate}
+  \item §3.3, \emph{Synchronous logic design}, pp.~117--121. Every change happens at a clock edge, so a state is where the machine waits between edges.
+  \item §3.4, \emph{Finite state machines}, pp.~121--139. It gives the design steps, starting from the diagram. Within it, \emph{Moore and Mealy machines}, p.~130, names the kind of machine built here, and \emph{Factoring state machines}, p.~132, splits a machine into a controller and counters, as this design does.
+  \item §4.6, \emph{Finite state machines}, in Verilog, pp.~207--211. It shows how a state diagram becomes a \texttt{case} statement.
+\end{enumerate}
 
-endmodule
+\subsection*{The state machine}
+
+A state machine has three parts: a register that holds the current state; next state logic, which computes the next state from the current state and the inputs; and output logic, which computes the outputs. At every clock edge, the register takes the next state. When the outputs depend on the current state alone, the machine is a \emph{Moore machine}.
+
+This design is two state machines working together. The \emph{controller} decides what the FPGA is doing: resting, loading a frame, or sending it. The \emph{counters} keep the numbers: how long the rest has lasted, how long the current bit has lasted, how many bits of the frame are left, which character comes next, and, in \texttt{frame}, the bits still to send. The outputs of each machine are inputs of the other. The controller’s state tells the counters what to do at the next clock edge; the counters tell the controller when the rest, a bit, or the frame is over, and when all 13 characters are sent.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[blk/.style={draw, thick, align=center, font=\small, minimum width=3.6cm, minimum height=2.2cm},
+      sig/.style={font=\scriptsize\ttfamily, align=center}]
+    \node[blk] (ctl) at (0,0) {controller\\[0.3em]\scriptsize\texttt{REST}, \texttt{LOAD}, \texttt{SEND}};
+    \node[blk] (cnt) at (7.4,0) {counters and frame\\[0.3em]\scriptsize\texttt{rest\_count}, \texttt{bit\_count},\\\scriptsize\texttt{bits\_left}, \texttt{char\_index}, \texttt{frame}};
+    \draw[->] ([yshift=0.6cm]ctl.east) -- node[sig, above] {state} ([yshift=0.6cm]cnt.west);
+    \draw[->] ([yshift=-0.6cm]cnt.west) -- node[sig, below] {rest\_done, bit\_done,\\ frame\_done, all\_sent} ([yshift=-0.6cm]ctl.east);
+    \draw[->] (ctl.south) -- ++(0,-0.8) node[sig, below] {busy};
+    \draw[->] (cnt.east) -- ++(0.9,0) node[sig, right] {tx};
+  \end{tikzpicture}
+  \caption{The two machines and the signals between them. \texttt{busy} comes from the controller’s state, and \texttt{tx} comes from the lowest bit of \texttt{frame}.}
+\end{figure}
+
+The controller has three states. At every clock edge it either stays in its state or follows an arrow to another; each arrow carries the condition for following it, and each circle shows the output while the controller is in that state.
+
+\begin{figure}[H]
+  \centering
+  \begin{tikzpicture}[st/.style={draw, thick, circle, minimum size=1.7cm, align=center, font=\small},
+      lbl/.style={font=\scriptsize, align=center}]
+    \node[st] (rest) at (0,0) {\texttt{REST}\\[0.1em]\scriptsize \texttt{busy} 0};
+    \node[st] (load) at (4.3,0) {\texttt{LOAD}\\[0.1em]\scriptsize \texttt{busy} 1};
+    \node[st] (send) at (8.6,0) {\texttt{SEND}\\[0.1em]\scriptsize \texttt{busy} 1};
+    \draw[->] (rest) to[bend left=25] node[lbl, above] {\texttt{rest\_done}\\ 100\,ms up} (load);
+    \draw[->] (load) to[bend left=25] node[lbl, above] {\texttt{!all\_sent}\\ characters left} (send);
+    \draw[->] (send) to[bend left=25] node[lbl, below] {\texttt{frame\_done}\\ tenth bit done} (load);
+    \draw[->] (load) to[bend left=25] node[lbl, below] {\texttt{all\_sent}\\ all 13 sent} (rest);
+    \draw[->] (rest) to[loop above, looseness=6] node[lbl, above] {\texttt{!rest\_done}} (rest);
+    \draw[->] (send) to[loop above, looseness=6] node[lbl, above] {\texttt{!frame\_done}} (send);
+    \draw[<-] (rest.west) -- ++(-1,0) node[left, lbl] {start};
+  \end{tikzpicture}
+  \caption{The three states of the controller. Each circle shows its state’s output, and each arrow carries its condition, named as in the code. \texttt{!} means \emph{not}. The controller starts in \texttt{REST}.}
+\end{figure}
+
+What the counters do depends on the controller’s state:
+\begin{itemize}
+  \item \textbf{In \texttt{REST}}, \texttt{rest\_count} counts the cycles of the rest, and \texttt{char\_index}, which points to the next character, goes back to the first one. When the rest has lasted 100\,ms, \texttt{rest\_done} becomes true and takes the controller to \texttt{LOAD}.
+  \item \textbf{In \texttt{LOAD}}, which lasts one cycle, the next character’s frame goes into \texttt{frame}. The frame is a start bit, 8 data bits, and a stop bit. \texttt{bits\_left}, which counts the bits still to send, is set to 10, and \texttt{char\_index} moves on to the next character. When \texttt{all\_sent} is true, no character is left, and the controller goes back to \texttt{REST} instead.
+  \item \textbf{In \texttt{SEND}}, \texttt{bit\_count} counts the cycles of the current bit. \texttt{frame} is a shift register, and \texttt{tx} is wired to its lowest bit. Every 234 cycles, \texttt{bit\_done} becomes true. Then the contents of \texttt{frame} move one place to the right, so its next bit reaches \texttt{tx}, and \texttt{bits\_left} goes down by one. After the tenth bit, \texttt{frame\_done} takes the controller back to \texttt{LOAD}.
+\end{itemize}
+
+\subsection*{Register-transfer level design}
+
+The design is in \name{rtl/hello/hello.v}. It is described here one block at a time, in the order of the file.
+
+\subsubsection*{Ports and constants}
+
+\inputminted[firstline=6, lastline=16]{verilog}{../rtl/hello/hello.v}
+
+The module has one input, the 27\,MHz clock, and three outputs. \texttt{tx} goes to the board’s USB-serial bridge, and \texttt{tx\_probe} carries the same signal to the analyser’s \name{CH0}. \texttt{busy} goes to \name{CH1}.
+
+\texttt{GAP} is the length of the rest in clock cycles: 2\,700\,000 cycles of 37\,ns make 100\,ms. \texttt{BAUD} is the length of one bit in cycles, and \texttt{N} is the number of characters. A \texttt{parameter} can be changed from outside the module, and the testbench uses this to shorten the rest. A \texttt{localparam} cannot be changed.
+
+\texttt{MSG} holds the whole message as one 104-bit constant, 8 bits per character, with the first character in the top byte. In Verilog, a string in quotes is a sequence of bytes. \texttt{8'h0d} is a \emph{sized literal}. The 8 says that it is eight bits wide, the \texttt{h} says that it is written in hexadecimal, and \texttt{0d} is its value. \texttt{8'h0d} is the carriage return, and \texttt{8'h0a} is the line feed. The braces join the pieces into one vector, with the first piece at the high end. This is called \emph{concatenation}.
+
+\subsubsection*{The state}
+
+\inputminted[firstline=18, lastline=19]{verilog}{../rtl/hello/hello.v}
+
+\texttt{REST}, \texttt{LOAD}, and \texttt{SEND} are names for 0, 1, and 2. Two bits hold three states, so \texttt{state} is a 2-bit register. It starts in \texttt{REST}, the value written after it. \texttt{nextstate} is the value that the next state logic computes. It is declared as \texttt{reg} because an \texttt{always} block assigns it, but it is no register. In Verilog, \texttt{reg} means only that an \texttt{always} block assigns the signal. A clocked block, \texttt{@(posedge sys\_clk)}, makes flip-flops of it, and a block that runs on any change, \texttt{@(*)}, makes gates.
+
+\subsubsection*{The counters and the frame}
+
+\inputminted[firstline=21, lastline=26]{verilog}{../rtl/hello/hello.v}
+
+These are the registers of the counters. Each one is wide enough for its largest value. \texttt{rest\_count} reaches 2\,699\,999, which needs 22 bits, and \texttt{bit\_count} reaches 233. \texttt{bits\_left} counts down from 10, and \texttt{char\_index} counts up to 13, so each needs 4 bits. Every register here starts at the value written after it.
+
+\texttt{frame} holds the ten bits of the frame being sent. \texttt{10'h3ff} is ten bits, all of them 1, so \texttt{tx} is high before the first frame, and the line rests.
+
+\subsubsection*{Counter outputs}
+
+\inputminted[firstline=28, lastline=32]{verilog}{../rtl/hello/hello.v}
+
+Each of these wires compares a counter with its limit. They are combinational logic, and they are the conditions on the controller’s arrows. \texttt{rest\_done} is true on the last cycle of the rest, and \texttt{bit\_done} is true on the last cycle of a bit. \texttt{frame\_done} is true on the last cycle of the last bit of the frame. \texttt{all\_sent} is true once \texttt{char\_index} has gone past the last character.
+
+A line \texttt{wire x = …;} declares a wire and drives it at once. It is the same as \texttt{wire x;} followed by \texttt{assign x = …;}.
+
+\subsubsection*{State register}
+
+\inputminted[firstline=34, lastline=36]{verilog}{../rtl/hello/hello.v}
+
+At every rising edge of \texttt{sys\_clk}, \texttt{state} takes the value of \texttt{nextstate}. The operator \texttt{<=} is the \emph{nonblocking} assignment, which is the one used for registers. With it, every register in the design takes its new value at the same clock edge.
+
+\subsubsection*{Next state logic}
+
+\inputminted[firstline=38, lastline=45]{verilog}{../rtl/hello/hello.v}
+
+This block is the state diagram written as code. Each circle of the diagram is a \texttt{case} branch, and each arrow leaving it is a condition in that branch. In \texttt{REST}, for example, the next state is \texttt{LOAD} when \texttt{rest\_done} is true, and \texttt{REST} otherwise.
+
+The block is combinational. \texttt{@(*)} runs it whenever one of its inputs changes, and it uses \texttt{=}, the \emph{blocking} assignment. The \texttt{default} branch covers the code 3, binary 11, which never occurs.
+
+\subsubsection*{Output logic}
+
+\inputminted[firstline=47, lastline=50]{verilog}{../rtl/hello/hello.v}
+
+\texttt{busy} is high in \texttt{LOAD} and \texttt{SEND}, and low in \texttt{REST}. It depends on the state alone, so the controller is a Moore machine. \texttt{tx} and \texttt{tx\_probe} are both the lowest bit of \texttt{frame}.
+
+\subsubsection*{Counters and frame}
+
+\inputminted[firstline=52, lastline=74]{verilog}{../rtl/hello/hello.v}
+
+This block is one more \texttt{case} on the state. Each branch says what its state does to the counters and to the frame at every clock edge.
+
+\begin{itemize}
+  \item \textbf{In \texttt{REST}}, \texttt{rest\_count} counts up, and it goes back to 0 on the last cycle of the rest. \texttt{char\_index} goes back to 0, so the next message starts with the first character.
+  \item \textbf{In \texttt{LOAD}}, if a character is left, its frame goes into \texttt{frame}. \texttt{MSG[8*(N-1-char\_index) +: 8]} is a \emph{part select}. It is the 8 bits of \texttt{MSG} that start at bit \texttt{8*(N-1-char\_index)} and go up. When \texttt{char\_index} is 0, they are bits 96 to 103, the top byte, which holds \texttt{H}. The concatenation \texttt{\{1'b1, …, 1'b0\}} puts a stop bit, 1, above the byte, and a start bit, 0, below it. \texttt{1'b1} is one bit, written in binary, with the value 1. \texttt{bits\_left} is set to 10, \texttt{bit\_count} to 0, and \texttt{char\_index} moves on to the next character.
+  \item \textbf{In \texttt{SEND}}, \texttt{bit\_count} counts the cycles of the current bit. On the last cycle of the bit, \texttt{bit\_count} goes back to 0, and \texttt{frame} moves one place to the right. \texttt{frame[9:1]} is bits 9 down to 1 of \texttt{frame}, and \texttt{\{1'b1, frame[9:1]\}} puts a 1 above them. The lowest bit drops out, the next bit reaches \texttt{tx}, and a 1, the resting level, comes in at the top. With Verilog’s shift operator, \texttt{>>}, the same is \texttt{(frame >> 1) | 10'h200}. At the same edge, \texttt{bits\_left} goes down by one.
+\end{itemize}
+
+The \texttt{default} branch again covers the code that never occurs, and it does nothing.
+
+The pins are in \name{rtl/hello/hello.cst}. \texttt{sys\_clk} is on pin 52, and \texttt{tx}, \texttt{tx\_probe}, and \texttt{busy} are on pins 17, 31, and 32. \texttt{make flash hello} builds the design and writes it to the board’s flash.
+
+\subsection*{In simulation}
+
+Before the board, the design runs in \name{Icarus Verilog}. A testbench, \name{sim/hello\_tb.v}, plays the receiver. At each start bit’s falling edge, it waits half a bit to reach the middle of the bit. Then it samples once per bit and prints the character. It also measures how long \texttt{busy} stays high and low. The rest is shortened to 1000 cycles.
+
+\begin{minted}{bash}
+iverilog -g2012 -o build/hello_tb sim/hello_tb.v rtl/hello/hello.v
+vvp -n build/hello_tb
 \end{minted}
 
-\texttt{MSG} holds the message as one 104-bit constant, first character in the top byte; \texttt{MSG[8*(N-1-i) +: 8]} picks character \texttt{i}. Each frame is loaded with its start bit at the bottom, so \texttt{tx} goes low at once, and every 234 cycles one bit moves out.
+\inputminted{text}{data/hello_tb.txt}
 
-\name{constraints/hello.cst}: \texttt{clk} on 52, and \texttt{tx}, \texttt{tx\_probe}, \texttt{busy} on 17, 19 and 20, all \texttt{LVCMOS33}. Build and flash as in Stage~0a: \texttt{make flash TOP=hello}.
+The message decodes. \texttt{busy} is high for 30\,434 cycles. The 13 frames take $13 \times 10 \times 234 = 30\,420$ cycles. Each of the 13 characters adds one cycle in \texttt{LOAD}, and one more cycle in \texttt{LOAD} finds that all are sent.
 
 \section*{The terminal}
 
-The bridge shows up on the Mac as two serial ports, one for JTAG and one for the UART:\here[which is which]
+The board’s USB-serial bridge, the \name{BL702}, is two USB devices in one, so the Mac shows two serial ports, whose names differ only in the last character. The one ending in 0 is JTAG, which \name{openFPGALoader} uses to load designs into the FPGA; the one ending in 1 is the UART, which \texttt{tx} drives:
 
 \begin{minted}{bash}
 ls /dev/cu.usbserial-*
 screen /dev/cu.usbserial-XXXX1 115200   # the UART; quit with Ctrl-a k
 \end{minted}
 
-\texttt{Hello world} scrolls by, ten lines a second.
+\name{screen} ships with macOS. It is a terminal multiplexer, the forerunner of \name{tmux}, and it also opens serial ports: given a port and a baud rate, it shows what arrives. \texttt{Hello world} scrolls by, ten lines a second. \name{picocom} and \name{tio} do the same and nothing else; \name{tio} also reconnects by itself when the board is unplugged and plugged back in.
 
 \section*{The analyser}
 
 The HiLetgo is a clone of the original Saleae Logic: 8 channels, 24 million samples a second.
 
+It needs Logic~2, installed as in the repo’s README. If Logic~2 doesn’t see the analyser while the Mac lists it as a USB device, use PulseView, which is also in the README.
+
 \begin{enumerate}
-  \item \textbf{Software.} \texttt{brew install --cask saleae-logic}, on both Macs. No driver is needed on macOS. If Logic~2 doesn’t see the device but System Information $\to$ USB lists it, the problem is in software: fall back to PulseView (\name{sigrok}, driver \name{fx2lafw}).
-  \item \textbf{Probe.} GND first, to the board’s GND; CH0 to pin 19, CH1 to pin 20.
-  \item \textbf{Capture.} 4\,MS/s, about 35 samples per bit, and plenty. Trigger on CH1’s rising edge; capture 2\,ms, long enough for the 13 frames (1.1\,ms).
-  \item \textbf{Decode.} Add the Async Serial analyser on CH0: 115\,200 baud, 8 bits, no parity, 1 stop bit, lowest bit first.
+  \item \textbf{Capture settings.} Click \emph{Device Settings}, then fill in:
+  \begin{itemize}[nosep]
+    \item \emph{Sample rate}: 4\,MS/s or more, which gives about 35 samples per bit;
+    \item \emph{Trigger}, the tab;
+    \item \emph{Pattern and Channel}: rising edge on \emph{01. Channel 1}, which is \name{CH1}, the \texttt{busy} line;
+    \item \emph{Capture duration after trigger}: 2\,ms, which is longer than the 1.13\,ms of the 13 frames;
+    \item \emph{Trim pre-trigger data} and \emph{Glitch filter}: off.
+  \end{itemize}
+  \item \textbf{Capture.} Click the start button. The capture stops 2\,ms after \texttt{busy} rises. \name{D0}, which is \name{CH0}, shows the 13 frames, and \name{D1}, which is \texttt{busy}, is high for 1.13\,ms around them.
+  \item \textbf{Decode.} Add an analyser, \emph{Async Serial}, and fill in its fields in order:
+  \begin{itemize}[nosep]
+    \item \emph{Input Channel}: \emph{00. Channel 0}, which is \name{CH0}, the \texttt{tx} line;
+    \item \emph{Bit Rate (Bits/s)}: 115200;
+    \item \emph{Bits per Frame}: 8;
+    \item \emph{Stop Bits}: 1;
+    \item \emph{Parity Bit}: none;
+    \item \emph{Significant Bit}: least significant bit sent first;
+    \item \emph{Signal inversion}: non inverted;
+    \item \emph{Mode}: normal.
+  \end{itemize}
+  Then \emph{Save}. Each frame gets a label with its byte, \texttt{0x48} for the first.
+  \item \textbf{Read as text.} Right-click a label and choose \emph{Ascii}: the labels read \texttt{H}, \texttt{e}, \texttt{l}, \texttt{l}, \texttt{o}, and so on to \texttt{\textbackslash r} and \texttt{\textbackslash n}.
 \end{enumerate}
 
 \textbf{Claude.} Logic~2 has an MCP server (Settings $\to$ Automation $\to$ MCP Server, experimental), which lets Claude start a capture and read the decoded text:
@@ -146,10 +326,16 @@ The HiLetgo is a clone of the original Saleae Logic: 8 channels, 24 million samp
 claude mcp add --transport http logic2 http://127.0.0.1:10530
 \end{minted}
 
-Saleae lists only its own devices as supported; whether it works with the clone is part of what this stage finds out.\here[unverified]
+Saleae lists only its own devices as supported; whether it works with the clone is part of what this lesson finds out.
 
 \section*{Done when}
 
-The decoder reads \texttt{Hello world\textbackslash r\textbackslash n} on CH0, the terminal prints it, and Claude can start a capture and read the decoded text over the \name{logic2} MCP server.
+The decoder reads \texttt{Hello world\textbackslash r\textbackslash n} on \name{CH0}, the terminal prints it, and Claude can start a capture and read the decoded text over the \name{logic2} MCP server.
+
+\begin{thebibliography}{DDCA}
+\bibitem[DDCA]{ddca} Sarah L. Harris and David Harris, \textit{Digital Design and Computer Architecture}, RISC-V edition, Morgan Kaufmann, 2022; \name{Harris - DDCA RISCV.pdf} in the books.
+\bibitem[TN9K]{schematic} Sipeed, \textit{Tang Nano 9K schematic}, \name{Tang\_Nano\_9k\_3672\_Schematic.pdf}, \url{https://dl.sipeed.com/shareURL/TANG/Nano%209K/2_Schematic}.
+\bibitem[Top]{topview} Sipeed, \textit{Tang Nano 9K top designator drawing}, \name{Tang\_Nano\_9K\_3672\_Top\_Designator\_Drawing.pdf}, \url{https://dl.sipeed.com/shareURL/TANG/Nano\%209K}; in the repo as \name{docs/assets/tang-nano-9k-top.pdf}.
+\end{thebibliography}
 
 \end{document}

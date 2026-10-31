@@ -1,4 +1,4 @@
-% Stage 0c: one 74HC595 driven by hand from three buttons.
+% one 74HC595 driven by hand from three buttons.
 % Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
 
 \documentclass[11pt,a4paper]{article}
@@ -33,7 +33,7 @@
 \begin{document}
 \maketitle
 
-Before any Verilog, your hands are the controller the FPGA will later be. Three pushbuttons stand in for the three FPGA pins that will drive the chip: \name{SER} (the data bit), \name{SRCLK} (shift) and \name{RCLK} (latch). In Stage~1, a state machine in the FPGA presses them in the same order.
+Here, your hands drive the \name{74HC595}. Three pushbuttons drive its three inputs: \name{SER} carries the data bit, \name{SRCLK} shifts, and \name{RCLK} latches.
 
 \section*{Parts}
 
@@ -49,11 +49,11 @@ From the starter kit:
   \item 2\,$\times$ 100\,nF ceramic capacitor (marked 104)
 \end{itemize}
 
-Use red, yellow or green LEDs: blue and white drop about 3\,V and barely light at 3.3\,V.
+Use red, yellow, or green LEDs. Blue and white LEDs drop about 3\,V, so they barely light at 3.3\,V.
 
 \section*{Power}
 
-The 9\,V adapter goes into the module, with its jumpers on \textbf{3.3\,V}, so this breadboard later takes the Tang Nano unchanged. Measure the rails before inserting the chip.
+The 9\,V adapter goes into the power module, with its jumpers on \textbf{3.3\,V}, the voltage of the Tang Nano 9K’s pins. Measure the rails before inserting the chip.
 
 \section*{Wiring}
 
@@ -63,13 +63,13 @@ The 9\,V adapter goes into the module, with its jumpers on \textbf{3.3\,V}, so t
   \caption{The breadboard, from \name{kicad/74HC595-manual-test/}.}
 \end{figure}
 
-The 10\,kΩ resistors are pull-downs: they hold each input at 0\,V while its button is up. Without them a released input floats and reads whatever it picks up.
+The 10\,kΩ resistors are pull-downs. They hold each input at 0\,V while its button is up. Without them, a released input floats and reads whatever it picks up.
 
 \section*{Bounce}
 
-When a button’s contacts close, they rattle for up to about a millisecond: closed, open, closed, open, then closed for good, typically 10 to 100 times~\cite[§10.4.1A \textit{Switch debouncing}, p.~729]{horowitz}. Release does the same. The chip is fast enough to see every one of those closures.
+When a button’s contacts close, they rattle for up to about a millisecond. They close and open again, typically 10 to 100 times, before they stay closed~\cite[§10.4.1A \textit{Switch debouncing}, p.~729]{horowitz}. Release does the same. The chip is fast enough to see every one of those closures.
 
-Only \name{SRCLK} cares. Each rising edge on \name{SRCLK} shifts in one bit, so a bouncing press shifts in several. \name{SER} is a level, read only at the moment \name{SRCLK} rises, and a bouncing \name{RCLK} just copies the same register to the outputs again.
+Only \name{SRCLK} is affected. Each rising edge on \name{SRCLK} shifts in one bit, so a bouncing press shifts in several. \name{SER} is a level, read only at the moment \name{SRCLK} rises, and a bouncing \name{RCLK} just copies the same register to the outputs again.
 
 The fix is the capacitor across \name{SRCLK}’s pull-down.
 
@@ -80,9 +80,9 @@ The fix is the capacitor across \name{SRCLK}’s pull-down.
 \end{figure}
 
 \begin{itemize}
-  \item \textbf{Press.} The button ties \name{SRCLK} straight to 3.3\,V, with no resistance in the way, so the capacitor charges at once: one fast, clean rising edge.
-  \item \textbf{Bounce.} Each time the contacts open, the capacitor can only drain through the 10\,kΩ, with time constant 10\,kΩ × 100\,nF = 1\,ms. Over a gap of a tenth of a millisecond the voltage drops by about a tenth, nowhere near the point where the chip would read \name{LOW}, so it never sees a second rising edge.
-  \item \textbf{Release.} The voltage falls slowly, about a millisecond through the undefined band between \name{LOW} and \name{HIGH}. The chip shifts on rising edges only, so the slow fall does nothing.
+  \item \textbf{Press.} The button ties \name{SRCLK} straight to 3.3\,V, with no resistance in the way, so the capacitor charges at once, and the chip sees one fast, clean rising edge.
+  \item \textbf{Bounce.} Each time the contacts open, the capacitor can only drain through the 10\,kΩ, with a time constant of 10\,kΩ × 100\,nF = 1\,ms. Over a gap of a tenth of a millisecond, the voltage drops by about a tenth. That is nowhere near the point where the chip would read \name{LOW}, so the chip never sees a second rising edge.
+  \item \textbf{Release.} The voltage falls slowly, and it takes about a millisecond to cross the undefined band between \name{LOW} and \name{HIGH}. The chip shifts on rising edges only, so the slow fall does nothing.
 \end{itemize}
 
 \begin{figure}[H]
@@ -103,19 +103,19 @@ The fix is the capacitor across \name{SRCLK}’s pull-down.
         \addplot[clock, thick, no marks] table[x=t, y=cap] {data/debounce.dat};
     \end{groupplot}
   \end{tikzpicture}
-  \caption{The same bouncy press and release, without and with the capacitor, simulated in \name{diagrams/debounce.ipynb}. The bounce pattern is invented, and stretched so it shows at this scale. In the grey band, between 0.3 and 0.7 of the supply, the chip’s reading is undefined. How the simulation works, and its code, is in \Cref{app:simulation}.}
+  \caption{The same bouncy press and release, without and with the capacitor, simulated in \name{diagrams/debounce.ipynb}. The bounce pattern is invented, and stretched so that it shows at this scale. In the grey band, between 0.3 and 0.7 of the supply, the chip’s reading is undefined. \Cref{app:simulation} explains how the simulation works and shows its code.}
 \end{figure}
 
-One caveat: the \name{595}’s inputs have no hysteresis, so noise during that slow fall could in principle flick the input up and down. A Schmitt-trigger input (\name{74HC14}) prevents it: it has two thresholds, so a slow, noisy input switches it only once~\cite[§4.3.2B \textit{Schmitt trigger}, p.~237]{horowitz}. If a release ever adds a shift, that is the cause.
+There is one caveat. The \name{595}’s inputs have no hysteresis, so noise during that slow fall could in principle flick the input up and down. A Schmitt-trigger input (\name{74HC14}) prevents this. It has two thresholds, so a slow, noisy input switches it only once~\cite[§4.3.2B \textit{Schmitt trigger}, p.~237]{horowitz}. If a release ever adds a shift, this is the cause.
 
 \section*{Procedure}
 
 It mirrors the \name{595} test in \name{digital/}.
 
 \begin{enumerate}
-  \item \textbf{Clear.} At power-up the outputs show any pattern. With \name{SER} up, press \name{SRCLK} eight times, then \name{RCLK}: all LEDs off.
-  \item \textbf{Shift in 1, 0, 1, 1, 0, 0, 0, 1.} For a 1, hold \name{SER} and press \name{SRCLK}; for a 0, press \name{SRCLK} alone. Always press \name{SER} \emph{before} \name{SRCLK}. The LEDs don’t change: the bits are in the shift register, not yet on the outputs.
-  \item \textbf{Latch.} Press \name{RCLK}. \name{QA} to \name{QH} now show 1, 0, 0, 0, 1, 1, 0, 1: the last bit in is at \name{QA}, the first at \name{QH}.
+  \item \textbf{Clear.} At power-up, the outputs show any pattern. With \name{SER} up, press \name{SRCLK} eight times, and then \name{RCLK}. All LEDs go off.
+  \item \textbf{Shift in 1, 0, 1, 1, 0, 0, 0, 1.} For a 1, hold \name{SER} and press \name{SRCLK}. For a 0, press \name{SRCLK} alone. Always press \name{SER} \emph{before} \name{SRCLK}. The LEDs don’t change, because the bits are in the shift register and not yet on the outputs.
+  \item \textbf{Latch.} Press \name{RCLK}. \name{QA} to \name{QH} now show 1, 0, 0, 0, 1, 1, 0, 1. The last bit in is at \name{QA}, and the first is at \name{QH}.
 \end{enumerate}
 
 Pressing \name{SRCLK} once more shifts everything along by one, but the LEDs only show it after the next \name{RCLK}.
@@ -127,7 +127,7 @@ A pattern pressed in bit by bit appears on the LEDs only on the \name{RCLK} pres
 \appendix
 \section{The bounce simulation}\label{app:simulation}
 
-The two waveforms in the bounce figure come from \name{diagrams/debounce.ipynb}, a few lines of \name{NumPy}. It steps through 7\,ms of time, one microsecond at a time, and works out the \name{SRCLK} voltage at each step for both circuits. Then it counts the rising edges the chip would see. The code below is the notebook’s, cell by cell; only the cell that previews the plot in the notebook is left out.
+The two waveforms in the bounce figure come from \name{diagrams/debounce.ipynb}, a few lines of \name{NumPy}. It steps through 7\,ms of time, one microsecond at a time, and works out the \name{SRCLK} voltage at each step for both circuits. Then it counts the rising edges that the chip would see. The code below is the notebook’s, cell by cell, except for the cell that previews the plot in the notebook.
 
 \subsection*{Constants}
 
@@ -149,11 +149,11 @@ CLOSED = [(1.00, 1.15), (1.25, 1.35), (1.45, 1.70), (1.80, 4.00), (4.12, 4.20), 
 closed = np.any([(a <= t) & (t < b) for a, b in CLOSED], axis=0)
 \end{minted}
 
-The button is an ideal switch, and \texttt{CLOSED} lists the intervals during which its contacts touch: a press at 1\,ms with three bounces, held until 4\,ms, and a release with two. Each interval becomes a row of \texttt{True}/\texttt{False}, one per instant; \texttt{np.any} merges the six rows into \texttt{closed}, which is \texttt{True} whenever the contacts touch. The pattern is made up: real bounces are shorter and less regular.
+The button is an ideal switch, and \texttt{CLOSED} lists the intervals during which its contacts touch. They describe a press at 1\,ms with three bounces, held until 4\,ms, and a release with two bounces. Each interval becomes a row of \texttt{True}/\texttt{False}, one per instant. \texttt{np.any} merges the six rows into \texttt{closed}, which is \texttt{True} whenever the contacts touch. The pattern is made up, and real bounces are shorter and less regular.
 
 \subsection*{SRCLK voltage}
 
-Without the capacitor, nothing stores charge: closed, the button ties \name{SRCLK} to 3.3\,V; open, the 10\,kΩ pulls it to 0\,V. With the capacitor, the voltage also depends on its past. Two laws describe it; the code follows them.
+Without the capacitor, nothing stores charge. When the contacts are closed, the button ties \name{SRCLK} to 3.3\,V, and when they are open, the 10\,kΩ pulls it to 0\,V. With the capacitor, the voltage also depends on its past. Two laws describe it, and the code follows them.
 
 \textbf{A capacitor, briefly.} A capacitor is two metal plates with an insulator between them. Current flowing into it piles charge $q$ on the plates, and the voltage across it is proportional to that charge:
 \[ q = C v, \tag*{[C]} \]
@@ -190,8 +190,8 @@ for i in range(1, len(t)):
 \end{minted}
 
 \begin{itemize}
-  \item \texttt{v\_pulldown}, pull-down only: the voltage follows the contacts exactly, so one line does it: \texttt{np.where} picks 3.3 where \texttt{closed} is \texttt{True} and 0 elsewhere. (The chip’s own input capacitance, a few picofarads, would make the fall take tens of nanoseconds: far too fast to matter here.)
-  \item \texttt{v\_cap}, with the capacitor: the loop walks forward one step at a time. Contacts closed: the button connects the capacitor straight to 3.3\,V with no resistor in the way; nothing limits the current, so it charges at once, \texttt{VCC}. In a real circuit, the supply and the contacts have a few ohms, which makes the charge take a fraction of a microsecond: less than one simulation step. Contacts open: by $v(t)$ above, one step of $\Delta t$ multiplies the voltage by $\mathrm{e}^{-\Delta t/\tau} = \mathrm{e}^{-0.001} \approx 0.999$, which is \texttt{np.exp(-DT / τ)}. This is exact, not an approximation.
+  \item \texttt{v\_pulldown} is the circuit with the pull-down only. The voltage follows the contacts exactly, so one line computes it: \texttt{np.where} picks 3.3 where \texttt{closed} is \texttt{True}, and 0 elsewhere. The chip’s own input capacitance, a few picofarads, would make the fall take tens of nanoseconds, which is far too fast to matter here.
+  \item \texttt{v\_cap} is the circuit with the capacitor, and the loop walks forward one step at a time. While the contacts are closed, the button connects the capacitor straight to 3.3\,V, with no resistor in the way. Nothing limits the current, so the capacitor charges at once, to \texttt{VCC}. In a real circuit, the supply and the contacts have a few ohms, which make the charge take a fraction of a microsecond, less than one simulation step. While the contacts are open, $v(t)$ above says that one step of $\Delta t$ multiplies the voltage by $\mathrm{e}^{-\Delta t/\tau} = \mathrm{e}^{-0.001} \approx 0.999$, which is \texttt{np.exp(-DT / τ)}. This is exact, not an approximation.
 \end{itemize}
 
 \subsection*{Rising edges}
@@ -217,13 +217,13 @@ rising edges, pull-down only: 6
 rising edges, with capacitor: 1
 \end{minted}
 
-Six for the pull-down only, one per closure, and one with the capacitor: the counts in the figure’s titles.
+The pull-down alone gives six rising edges, one per closure, and the capacitor gives one. These are the counts in the figure’s titles.
 
-Inside the band the chip’s reading is undefined, so the count plays safe. The flag \texttt{low} is \texttt{True} when the input has dropped below $V_\mathrm{IL}$ since the last edge counted. An edge counts only when the voltage climbs above $V_\mathrm{IH}$ while \texttt{low} is \texttt{True}; counting it sets \texttt{low} to \texttt{False}, and only a drop below $V_\mathrm{IL}$ sets it back to \texttt{True}. So a wobble inside the band never counts twice.
+Inside the band, the chip’s reading is undefined, so the count plays safe. The flag \texttt{low} is \texttt{True} when the input has dropped below $V_\mathrm{IL}$ since the last edge counted. An edge counts only when the voltage climbs above $V_\mathrm{IH}$ while \texttt{low} is \texttt{True}. Counting it sets \texttt{low} to \texttt{False}, and only a drop below $V_\mathrm{IL}$ sets it back to \texttt{True}. So a wobble inside the band never counts twice.
 
-This is kinder than the real chip. The \name{595} has no such memory: somewhere inside the band sits a single threshold, so noise during a slow fall could still cross it twice. That is the caveat at the end of the Bounce section.
+This is kinder than the real chip. The \name{595} has no such memory, because somewhere inside the band sits a single threshold, so noise during a slow fall could still cross it twice. That is the caveat at the end of the Bounce section.
 
-The last cell saves \texttt{[t, v\_pulldown, v\_cap]} with \texttt{np.savetxt}, every tenth instant (\texttt{[::10]}, 10\,µs apart): the data the figure plots.
+The last cell saves \texttt{[t, v\_pulldown, v\_cap]} with \texttt{np.savetxt}, at every tenth instant (\texttt{[::10]}, 10\,µs apart). This is the data that the figure plots.
 
 \begin{thebibliography}{AoE3}
 \bibitem[AoE3]{horowitz} Paul Horowitz and Winfield Hill, \textit{The Art of Electronics}, 3rd edition, Cambridge University Press, 2015.

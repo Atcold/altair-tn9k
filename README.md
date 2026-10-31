@@ -59,6 +59,18 @@ The suite runs Apicula’s `gowin_pack` on its own Python, which lacks three lib
 ~/Applications/oss-cad-suite/bin/tabbypy3 -m pip install numpy msgspec fastcrc
 ```
 
+### Logic analyser
+
+[Logic 2](https://www.saleae.com/downloads), Saleae's software, reads the HiLetgo analyser, a clone of Saleae's Logic:
+
+```sh
+brew install --cask saleae-logic
+```
+
+If Logic 2 doesn't see the analyser, [PulseView](https://sigrok.org/wiki/Downloads), from the sigrok project, with its `fx2lafw` driver, does.
+
+### RTL drawings
+
 `make rtl` also needs netlistsvg, from Homebrew:
 
 ```sh

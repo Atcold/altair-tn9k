@@ -24,7 +24,7 @@
 \begin{document}
 \maketitle
 
-Out of the box, the board runs a program of its own: all six LEDs flash together, and holding \name{S1} freezes them. It lives in the FPGA’s built-in flash, so it starts at every power-up. Loading a design into RAM, as \texttt{make load} does, leaves it alone: the next power-up brings it back. \texttt{make flash} replaces it. This chapter is how to put it back.
+Out of the box, the board runs a program of its own. All six LEDs flash together, and holding \name{S1} freezes them. The program lives in the FPGA’s built-in flash, so it starts at every power-up. Loading a design into RAM, as \texttt{make load} does, leaves the program alone, and the next power-up brings it back. \texttt{make flash} replaces it. This chapter shows how to put it back.
 
 \section*{It can’t be copied}
 
@@ -35,62 +35,59 @@ Three ways to read it off the board, and none works.
 \begin{minted}{bash}
 openFPGALoader -b tangnano9k --dump-flash --file-size 262144 dump.bin
 \end{minted}
-  It reports \name{PUYA P25Q32H}, 32\,Mbit: the board’s separate SPI flash chip, not the FPGA’s built-in flash, where the program is. Before reading, it also erases the FPGA’s RAM, so the LEDs stop until the next power-up. 262\,144 bytes, 256\,KiB, would hold one bitstream: Gowin’s binary one for this chip is 258\,574 bytes.
-  \item \textbf{Gowin’s programmer.} Its command-line version, \name{programmer\_cli} in Gowin EDA’s \name{Programmer/bin/}, lists 54 operations. For the built-in flash (\name{embFlash}) there are erase and program, but no read.
-  \item \textbf{Reading the RAM instead.} At power-up the chip copies the program from flash into RAM, and the programmer’s operation 3, \name{SRAM Read}, reads RAM back:
+  It reports \name{PUYA P25Q32H}, 32\,Mbit. That is the board’s separate SPI flash chip, while the program is in the FPGA’s built-in flash. Before reading, the command also erases the FPGA’s RAM, so the LEDs stop until the next power-up. 262\,144 bytes, or 256\,KiB, would hold one bitstream, since Gowin’s binary bitstream for this chip is 258\,574 bytes.
+  \item \textbf{Gowin’s programmer.} Its command-line version, \name{programmer\_cli} in Gowin EDA’s \name{Programmer/bin/}, lists 54 operations. For the built-in flash (\name{embFlash}), it can erase and program, but it can’t read.
+  \item \textbf{Reading the RAM instead.} At power-up, the chip copies the program from flash into RAM, and the programmer’s operation 3, \name{SRAM Read}, reads the RAM back:
 \begin{minted}{bash}
 programmer_cli --device GW1NR-9C --run 3
 \end{minted}
-  It reads the whole chip, 712 frames of 2\,836 bits, the same 712 frames as a bitstream, and every bit is 1: blank. Most likely the factory bitstream was built with read-back protection, Gowin’s \emph{security bit}. It ignores \texttt{--output} on macOS and writes \name{sram\_readback.txt} inside Gowin’s app.
+  It reads the whole chip, 712 frames of 2\,836 bits, which are the same 712 frames as a bitstream, and every bit is 1, so the RAM reads as blank. Most likely, the factory bitstream was built with read-back protection, which Gowin calls the \emph{security bit}. On macOS, the programmer ignores \texttt{--output} and writes \name{sram\_readback.txt} inside Gowin’s app.
 \end{enumerate}
 
-Nor is the file published: Sipeed’s examples for the board~\cite{examples} hold no bitstreams, and none is described as the factory program.
+Nor is the file published. Sipeed’s examples for the board~\cite{examples} hold no bitstreams, and none of them is described as the factory program.
 
 \section*{The stand-in}
 
-So a design that behaves the same, written from what the board does: \name{rtl/factory/factory.v}.
+So this chapter writes a design that behaves the same, from what the board does: \name{rtl/factory/factory.v}.
 
-\begin{minted}{verilog}
-module factory (
-    input sys_clk,              // 27 MHz
-    input s1,                   // S1: low while pressed
-    output reg [5:0] led = 0    // low lights an LED: all on at power-up
-);
+\subsection*{Ports}
 
-localparam TICK = 13_500_000;   // 0.5 s at 27 MHz
+\inputminted[firstline=5, lastline=9]{verilog}{../rtl/factory/factory.v}
 
-reg [23:0] cnt = 0;
+The module has two inputs, the 27\,MHz clock and the button \name{S1}, and one output, the six LEDs. \texttt{s1} reads low while the button is pressed. An LED lights when its pin is low, so \texttt{led} starts at 0, the value written after it, and all six LEDs are on at power-up. \texttt{led} is declared as \texttt{reg} because an \texttt{always} block assigns it.
 
-always @(posedge sys_clk)
-    if (s1)                         // S1 not pressed (high): count, and flip every 0.5 s
-        if (cnt == TICK - 1) begin
-            cnt <= 0;
-            led <= ~led;            // all six at once
-        end else
-            cnt <= cnt + 1'b1;
-    // S1 pressed: nothing changes, so the LEDs hold their state
+\subsection*{Counter}
 
-endmodule
-\end{minted}
+\inputminted[firstline=11, lastline=13]{verilog}{../rtl/factory/factory.v}
 
-The counter is the running LEDs’ one, but where those rotate \texttt{led}, this inverts all six bits at once: \texttt{\~{}led}. \name{S1} is a condition around everything: while it is pressed, neither register changes. There is no reset: the registers start from their \texttt{= 0} when the FPGA loads. The half second is a guess, matched by eye.
+\texttt{TICK} is half a second in clock cycles: 13\,500\,000 cycles of 37\,ns. It is a \texttt{localparam}, a constant inside the module. \texttt{cnt} counts the cycles of the current half second, from 0 to \texttt{TICK - 1}. 13\,499\,999 fits in 24 bits, because $2^{24}$ is 16\,777\,216.
 
-The pins, \name{rtl/factory/factory.cst}, are those of the running LEDs, with \name{S1} on pin 4 as \texttt{s1}.
+\subsection*{The flashing}
+
+\inputminted[firstline=15, lastline=22]{verilog}{../rtl/factory/factory.v}
+
+This block runs at every rising edge of \texttt{sys\_clk}. The operator \texttt{<=} is the \emph{nonblocking} assignment, which is the one used for registers. With it, every register takes its new value at the same clock edge.
+
+While \name{S1} is up, \texttt{s1} is high, and the block counts. On the last cycle of the half second, \texttt{cnt} goes back to 0, and \texttt{led} takes \texttt{\~{}led}, which inverts all six bits at once. On every other cycle, \texttt{cnt} counts up by one. \texttt{1'b1} is one bit, written in binary, with the value 1.
+
+While \name{S1} is pressed, \texttt{s1} is low, and nothing in the block runs. Both registers keep their values, so the LEDs hold. There is no reset, and the registers start from their \texttt{= 0} when the FPGA loads. The half second is a guess, matched by eye.
+
+The pins are in \name{rtl/factory/factory.cst}. \texttt{sys\_clk} is on pin 52, the six LEDs are on pins 10, 11, and 13 to 16, and \name{S1} is on pin 4, as \texttt{s1}.
 
 \begin{figure}[H]
   \centering
   \colorbox{white}{\includegraphics[width=0.85\linewidth]{fig/factory-rtl.pdf}}
-  \caption{\name{factory.v}, from \texttt{make rtl factory}. Red leads to \texttt{led}, blue to \texttt{cnt}; amber is the clock, teal \texttt{s1}; constants are black.}
+  \caption{\name{factory.v}, drawn by \texttt{make rtl factory}. Red lines lead to \texttt{led}, and blue lines lead to \texttt{cnt}. Amber is the clock, teal is \texttt{s1}, and constants are black.}
 \end{figure}
 
-It reads as the code, with each \texttt{if} a multiplexer, \texttt{\$mux}: when its select \texttt{S} is 0 it passes the input marked 0, when 1 the input marked 1.
+It reads like the code, and each \texttt{if} becomes a multiplexer, \texttt{\$mux}. When its select \texttt{S} is 0, the multiplexer passes the input marked 0, and when \texttt{S} is 1, it passes the input marked 1.
 
 \begin{itemize}
-  \item \textbf{Two registers}, plain flip-flops, \texttt{\$dff}: no reset. \texttt{D} in, \texttt{Q} out, \texttt{sys\_clk} on \texttt{CLK}. On the chip, \texttt{led} becomes six \texttt{DFFE}, flip-flops with an enable, and \texttt{cnt} 24 \texttt{DFFRE}, with an enable and a synchronous reset, which acts on the clock: the multiplexers below, folded into the flip-flops.
-  \item \textbf{\texttt{led}}, top. The first multiplexer: \texttt{S} from $=$; 0, \texttt{led}; 1, \texttt{\~{}led}, from the inverter. The second: \texttt{S} from \texttt{s1}; 0, \texttt{led} again; 1, the first one’s output. So \texttt{led} flips at the end of each count, and only while \name{S1} is up: the two in a row are an AND of $=$ and \texttt{s1}.
-  \item \textbf{\texttt{cnt}}, bottom. The first multiplexer: \texttt{S} from $=$; 0, \texttt{cnt + 1}; 1, the constant 0. The second: \texttt{S} from \texttt{s1}; 0, \texttt{cnt}; 1, the first one’s output.
-  \item \textbf{On the chip} no multiplexer is left: the second of each pair, the one that keeps the old value, becomes the flip-flops’ enable; \texttt{cnt}’s first, back to 0, becomes the synchronous reset of its \texttt{DFFRE}; \texttt{led}’s first becomes look-up tables.
-  \item \textbf{$=$}, black: it compares \texttt{cnt} with 13\,499\,999 and feeds both registers’ logic, so it belongs to neither.
+  \item \textbf{Two registers.} Both are plain flip-flops, \texttt{\$dff}, without a reset. Each takes \texttt{D} in and gives \texttt{Q} out, with \texttt{sys\_clk} on \texttt{CLK}. On the chip, \texttt{led} becomes six \texttt{DFFE} cells, which are flip-flops with an enable. \texttt{cnt} becomes 24 \texttt{DFFRE} cells, which have an enable and a synchronous reset that acts on the clock. The enable and the reset are the multiplexers below, folded into the flip-flops.
+  \item \textbf{\texttt{led}} is at the top. The $=$ box drives the first multiplexer’s \texttt{S}. Its input 0 is \texttt{led}, and its input 1 is \texttt{\~{}led}, from the inverter. \texttt{s1} drives the second multiplexer’s \texttt{S}. Its input 0 is \texttt{led} again, and its input 1 is the output of the first multiplexer. So \texttt{led} flips at the end of each count, but only while \name{S1} is up. The two multiplexers in a row act as an AND of $=$ and \texttt{s1}.
+  \item \textbf{\texttt{cnt}} is at the bottom. The $=$ box drives the first multiplexer’s \texttt{S}. Its input 0 is \texttt{cnt + 1}, and its input 1 is the constant 0. \texttt{s1} drives the second multiplexer’s \texttt{S}. Its input 0 is \texttt{cnt}, and its input 1 is the output of the first multiplexer.
+  \item \textbf{On the chip,} no multiplexer is left. The second multiplexer of each pair, the one that keeps the old value, becomes the enable of the flip-flops. The first multiplexer of \texttt{cnt}, which goes back to 0, becomes the synchronous reset of its \texttt{DFFRE} cells. The first multiplexer of \texttt{led} becomes look-up tables.
+  \item \textbf{The $=$ box} is black. It compares \texttt{cnt} with 13\,499\,999 and feeds the logic of both registers, so it belongs to neither.
 \end{itemize}
 
 \section*{Steps}
@@ -103,7 +100,7 @@ From the top of the repo:
 \begin{minted}{bash}
 make load factory
 \end{minted}
-  Compare the two: the rate of the flashing, and \name{S1} holding it. Unplugging brings the original back, for another look. If the rate differs, change \texttt{TICK}.
+  Compare the two: the rate of the flashing, and \name{S1} holding it. Unplugging brings the original back for another look. If the rate differs, change \texttt{TICK}.
   \item \textbf{Put it back}, after a \texttt{make flash} of your own:
 \begin{minted}{bash}
 make flash factory

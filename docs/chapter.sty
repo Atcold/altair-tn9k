@@ -7,12 +7,15 @@
 \RequirePackage{tikz}
 \RequirePackage{xspace}
 \RequirePackage{pgfornament}
+\RequirePackage{graphicx}
+\RequirePackage{tikz-timing}  % timing diagrams, with sloped edges
 
 % Links, URLs and citations in one strong cyan: hyperref's default green barely shows on a white
-% screen, and blue reads as black text.
+% screen, and blue reads as black text. Every PDF also names its project, which the review tooling reads.
 \definecolor{link}{HTML}{0099CC}
 \AtBeginDocument{\@ifpackageloaded{hyperref}{%
-  \hypersetup{linkcolor=link, urlcolor=link, filecolor=link, citecolor=link}}{}}
+  \hypersetup{linkcolor=link, urlcolor=link, filecolor=link, citecolor=link,
+    pdfinfo={Project=altair-8800-tang-nano-9k}}}{}}
 
 % Names of things (chips, pins, files, folders, programs) in sans; \texttt only for literal text.
 % The sans underscore is a third wider than a letter; inside \name it is as wide as a space.
@@ -35,3 +38,37 @@
   \ifvmode\leavevmode\let\here@next\ignorespaces
   \else\ifdim\lastskip>\z@\let\here@next\ignorespaces\else\let\here@next\xspace\fi\fi
   \here@hand{#1}\here@next}
+
+% The board from above, upright with the USB-C connector at the top: Sipeed's drawing in assets/,
+% turned a quarter clockwise, with the header pins a lesson uses circled and tagged:
+% \boardpins{side/position/tag/fan, ...}, side l (left row) or r (right row), positions counted
+% from the USB-C end; fan moves the tag up (negative) or down (positive) by whole tag heights, so
+% tags of neighbouring pins don't overlap. In the drawing's own coordinates, in bp, pin n is
+% 30.6 + 30.5 (n - 1) from the USB-C end; turned, the left row is 21.6 from the left edge, the
+% right row 296.2.
+\newcommand{\boardpins}[1]{%
+  \begin{tikzpicture}[x=0.18bp, y=-0.18bp]
+    \node[anchor=north west, inner sep=0] at (0,0)
+      {\includegraphics[trim=0 138.32 0 138, clip, angle=-90, scale=0.18]{assets/tang-nano-9k-top.pdf}};
+    \foreach \side/\n/\l/\f in {#1} {
+      \pgfmathsetmacro{\y}{30.6 + 30.5*(\n-1)}
+      \pgfmathsetmacro{\t}{\y + 62*\f}
+      \if r\side
+        \draw[red, line width=0.8pt] (296.2,\y) circle (16);
+        \draw[red, line width=0.5pt] (312,\y) -- (350,\y) -- (390,\t)
+          node[right, font=\scriptsize\sffamily, inner sep=1.5pt] {\l};
+      \else
+        \draw[red, line width=0.8pt] (21.6,\y) circle (16);
+        \draw[red, line width=0.5pt] (5.6,\y) -- (-32,\y) -- (-72,\t)
+          node[left, font=\scriptsize\sffamily, inner sep=1.5pt] {\l};
+      \fi
+    }
+  \end{tikzpicture}}
+
+% A quartz crystal, the board's 27 MHz clock source, as in a schematic: two plates and the quartz
+% between them. \pic {crystal}; its output is at (0.3,0), on the right.
+\tikzset{crystal/.pic={
+  \draw[thick] (-0.3,0) -- (-0.18,0) (-0.18,-0.3) -- (-0.18,0.3)
+               (0.18,-0.3) -- (0.18,0.3) (0.18,0) -- (0.3,0);
+  \draw[thick] (-0.1,-0.38) rectangle (0.1,0.38);
+}}

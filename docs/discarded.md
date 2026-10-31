@@ -22,6 +22,6 @@ Its breadboard stage, one byte over SPI, after reading switches with the 74HC165
 - Loop: read GPIOB, write it to OLATA, with the same debounce and mirror top level as the 165.
 - Done when: with `PANEL=mcp`, flipping a switch toggles its LED, and `PANEL=sr` still drives the 595’s LEDs from the same switches.
 
-Parts it needed: 5 MCP23S17-E/SP (DIP-28), 5 DIP-28 sockets, one 10 kΩ RESET pull-up, three 33 Ω series resistors on SCK, MOSI and CS_n.
+Parts it needed: 5 MCP23S17-E/SP (DIP-28), 5 DIP-28 sockets, one 10 kΩ RESET pull-up, three 33 Ω series resistors on SCK, MOSI, and CS_n.
 
 The drawings were `diagrams/panel_mcp.py` (five panel sheets) and the U3 half of `diagrams/first_byte.py`; both are in the repo’s history up to commit `08c265e`.

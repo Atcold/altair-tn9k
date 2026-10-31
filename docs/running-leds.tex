@@ -1,4 +1,4 @@
-% Stage 0a: a light running around the onboard LEDs, first with Gowin EDA as in my old project, then with the open-source flow.
+% a light running around the onboard LEDs, first with Gowin EDA as in my old project, then with the open-source flow.
 % Build with ./build.sh (figures, then latexmk; settings in .latexmkrc).
 
 \documentclass[11pt,a4paper]{article}
@@ -24,7 +24,7 @@
 \begin{document}
 \maketitle
 
-The six onboard LEDs light one at a time, moving along every half second: my old \name{led/} project. First it is rebuilt in Gowin EDA, step by step as in my notes, which is known to work and already installed. Then the open-source flow builds the very same two files, the Verilog and the pin constraints that Gowin wrote, from a \name{Makefile}.
+The six onboard LEDs light one at a time, moving along every half second. This is my old \name{led/} project. First, it is rebuilt in Gowin EDA, step by step as in my notes, because Gowin EDA is known to work and is already installed. Then the open-source flow builds the very same two files, the Verilog and the pin constraints that Gowin wrote, from a \name{Makefile}.
 
 \section*{The board}\phantomsection\label{sec:board}
 
@@ -42,42 +42,39 @@ The six onboard LEDs light one at a time, moving along every half second: my old
 
 The pin numbers are from the board’s schematic~\cite{schematic}.
 
-\section*{The design}\phantomsection\label{sec:design}
+\section*{Register-transfer level design}\phantomsection\label{sec:design}
 
-\name{led.v}, from my old project:
+\name{led.v}, from my old project, is in \name{ide/led/src/led.v}. It is described here one block at a time, in the order of the file.
 
-\begin{minted}{verilog}
-module led (
-    input sys_clk,          // clock input - system clock signal
-    input sys_rst_n,        // active-low reset input - resets module when pulled low
-    output reg [5:0] led    // 6 LED output pins, defined as a 6-bit register
-);
+\subsection*{Ports}
 
-// 24-bit counter to create delay between LED rotations
-reg [23:0] cnt;
+\inputminted[firstline=1, lastline=5]{verilog}{../ide/led/src/led.v}
 
-// First always block: counter management
-always @(posedge sys_clk or negedge sys_rst_n) begin
-    if (!sys_rst_n)
-        cnt <= 24'd0;                 // reset counter to 0 when reset is active (low)
-    else if (cnt < 24'd13_499_999)    // count up to 13.5M to create a 0.5s delay at 27MHz
-        cnt <= cnt + 1'b1;            // increment counter
-    else
-        cnt <= 24'd0;                 // reset counter when it reaches the maximum value
-end
+The module has two inputs, the 27\,MHz clock and the button \name{S1}, and one output, the six LEDs, as a 6-bit register. The \texttt{\_n} in \texttt{sys\_rst\_n} says that the signal is active low, so the reset acts while the pin is low, which is while \name{S1} is pressed. An LED lights when its pin is low.
 
-// Second always block: LED pattern control
-always @(posedge sys_clk or negedge sys_rst_n) begin
-    if (!sys_rst_n)
-        led <= 6'b111110;                  // initialise LEDs to 111110
-    else if (cnt == 24'd13_499_999)        // count up to 13.5M
-        led[5:0] <= {led[4:0], led[5]};    // rotate LEDs to the left
-    else
-        led <= led;                        // maintain current LED state
-end
+\subsection*{The counter register}
 
-endmodule
-\end{minted}
+\inputminted[firstline=7, lastline=8]{verilog}{../ide/led/src/led.v}
+
+\texttt{cnt} is 24 bits wide, which is enough for 13\,499\,999, because $2^{24}$ is 16\,777\,216.
+
+\subsection*{The counter}
+
+\inputminted[firstline=10, lastline=18]{verilog}{../ide/led/src/led.v}
+
+This block runs at every rising edge of \texttt{sys\_clk}, and also at every falling edge of \texttt{sys\_rst\_n}. So the reset acts at once, without waiting for the clock, and it is called an \emph{asynchronous} reset. The operator \texttt{<=} is the \emph{nonblocking} assignment, which is the one used for registers.
+
+While the reset is held, \texttt{cnt} is 0. Otherwise, \texttt{cnt} counts up by one on every cycle until it reaches 13\,499\,999, and then it goes back to 0. Counting from 0, that is 13\,500\,000 cycles of the 27\,MHz clock, which is half a second.
+
+\texttt{24'd13\_499\_999} is a \emph{sized literal}. The 24 says that it is 24 bits wide, the \texttt{d} says that it is written in decimal, and the underscores only make it easier to read. \texttt{1'b1} is one bit, written in binary, with the value 1.
+
+\subsection*{The LEDs}
+
+\inputminted[firstline=20, lastline=28]{verilog}{../ide/led/src/led.v}
+
+The second block has the same clock and reset. The reset sets \texttt{led} to \texttt{111110}, so the LED on \texttt{led[0]} is lit and the other five are off.
+
+On the last cycle of each half second, \texttt{led} rotates. \texttt{\{led[4:0], led[5]\}} is a \emph{concatenation}. It joins bits 4 to 0 of \texttt{led} with bit 5 below them, so every bit moves up one place, and bit 5 comes round to bit 0. The lit LED therefore moves to the next one. On every other cycle, \texttt{led <= led} keeps the value.
 
 \section*{Part 1: Gowin EDA}
 
@@ -90,7 +87,7 @@ To create the project:
 \begin{enumerate}
   \item project name \name{led}, in the repo’s \name{ide/} folder; device series \texttt{GW1NR}, part number \texttt{GW1NR-LV9QN88PC6/I5}, device version \texttt{C} (from the device specs);
   \item create and save a new Verilog file, \name{led.v}, in the project’s \name{src/} folder: \name{ide/led/src/led.v}, where Part~2 reads it;
-  \item edit the source in VS Code: the code in \hyperref[sec:design]{\emph{The design}};
+  \item edit the source in VS Code: the code in \hyperref[sec:design]{\emph{Register-transfer level design}};
   \item From \name{Design} move to \name{Process} view on the left panel;
   \item \name{Synthesise}
   \item \name{FloorPlanner} $\to$ \name{Ok}
@@ -121,7 +118,7 @@ To create the project:
   \end{enumerate}
 \end{enumerate}
 
-\textbf{RTL drawing.} RTL, register-transfer level, describes a circuit as its registers and the logic that computes each one’s next value, on every clock: what the Verilog says, before it becomes the chip’s cells. After \name{Synthesise}: \name{Tools} $\to$ \name{Schematic Viewer} $\to$ \name{RTL Design Viewer}. It draws the design as synthesis understood it, before it is mapped onto the chip’s cells. From my notes: the \texttt{cnt} register is implemented using a \texttt{DFFR}, D Flip-Flop with Reset. Have a look, then compare it with \name{Yosys}’s in \hyperref[sec:rtl]{\emph{The RTL drawing}}.
+\textbf{RTL drawing.} RTL, register-transfer level, describes a circuit as its registers and the logic that computes the next value of each one at every clock. It is what the Verilog says, before the design becomes the chip’s cells. After \name{Synthesise}, open \name{Tools} $\to$ \name{Schematic Viewer} $\to$ \name{RTL Design Viewer}. It draws the design as synthesis understood it, before it is mapped onto the chip’s cells. From my notes: the \texttt{cnt} register is implemented using a \texttt{DFFR}, D Flip-Flop with Reset. Have a look, then compare it with the \name{Yosys} drawing in \hyperref[sec:rtl]{\emph{The RTL drawing}}.
 
 \textbf{Done when} one lit LED goes around the six, a step every half second, and holding the reset button keeps it on the first.
 
@@ -131,7 +128,7 @@ The tools are set up as in the repo’s \name{README.md}.
 
 \subsection*{The steps, by hand}
 
-Four programs, one per step. Once by hand, to see each step and what it writes; the \name{Makefile} below then runs them all. From the top of the repo, the outputs go into \name{build/}:
+There are four programs, one per step. This section runs them once by hand, to show each step and what it writes, and the \name{Makefile} below then runs them all. The commands run from the top of the repo, and the outputs go into \name{build/}:
 
 \begin{minted}{bash}
 mkdir -p build
@@ -142,33 +139,33 @@ mkdir -p build
 \begin{minted}{bash}
 yosys -q -p "read_verilog ide/led/src/led.v; synth_gowin -top led -json build/led.json"
 \end{minted}
-  \texttt{synth\_gowin} turns \name{led.v} into the Gowin chip’s own cells: look-up tables, flip-flops, adders. It writes the result, a \emph{netlist}, the list of cells and the wires between them, as \name{build/led.json}. \texttt{-q} keeps it quiet but for warnings.
+  \texttt{synth\_gowin} turns \name{led.v} into the Gowin chip’s own cells: look-up tables, flip-flops, and adders. It writes the result as \name{build/led.json}. The result is a \emph{netlist}, which lists the cells and the wires between them. \texttt{-q} keeps \name{yosys} quiet except for warnings.
 
   \item \textbf{Place and route: cells onto the chip, then the wires}, with \name{nextpnr-himbaechel}.
 \begin{minted}{bash}
 nextpnr-himbaechel --json build/led.json --write build/led-pnr.json \
     --device GW1NR-LV9QN88PC6/I5 --vopt family=GW1N-9C --vopt cst=ide/led/src/led.cst
 \end{minted}
-  It gives each cell a place on the chip and routes the wires between them; \name{led.cst} pins the ports where Part~1 dragged them. It writes the placed netlist, \name{build/led-pnr.json}, and prints the resources used and the maximum clock, as in \hyperref[sec:compare]{\emph{Compare}}. The \texttt{\textbackslash} continues the command on the next line.
+  It gives each cell a place on the chip and routes the wires between them. \name{led.cst} puts the ports on the pins where Part~1 dragged them. It writes the placed netlist, \name{build/led-pnr.json}, and prints the resources used and the maximum clock, which \hyperref[sec:compare]{\emph{Compare}} lists. The \texttt{\textbackslash} at the end of a line continues the command on the next line.
 
   \item \textbf{Bitstream: the file the FPGA loads}, with \name{gowin\_pack}, from Apicula.
 \begin{minted}{bash}
 gowin_pack -d GW1N-9C -o build/led.fs build/led-pnr.json
 \end{minted}
-  It turns the placed netlist into the bitstream, the bits that configure the chip: \name{build/led.fs}.
+  It turns the placed netlist into the bitstream, the bits that configure the chip, and writes it as \name{build/led.fs}.
 
   \item \textbf{Programming: the bitstream over USB}, with \name{openFPGALoader}.
 \begin{minted}{bash}
 openFPGALoader -b tangnano9k build/led.fs
 \end{minted}
-  It loads the bitstream into the FPGA’s RAM, like \name{SRAM Program} in Part~1: it runs at once, and is gone at power-off. \texttt{-b tangnano9k} names the board, so it knows the programmer and the chip.
+  It loads the bitstream into the FPGA’s RAM, like \name{SRAM Program} in Part~1. The design runs at once and is gone at power-off. \texttt{-b tangnano9k} names the board, so \name{openFPGALoader} knows the programmer and the chip.
 \end{enumerate}
 
-\textbf{Done when} step~4 does what Part~1 did, on both Macs.
+\textbf{Done when} step~4 does what Part~1 did.
 
 \subsection*{In one line}
 
-The repo’s \name{Makefile} has the same four steps. Every command works on one design, named after it; here, \texttt{led}. From the top of the repo:
+The repo’s \name{Makefile} has the same four steps. Every command works on one design, whose name follows the command. Here, the design is \texttt{led}. From the top of the repo:
 
 \begin{minted}{bash}
 make help                   # the commands, in short; also plain make
@@ -180,11 +177,11 @@ make rtl led                # the RTL drawing, in the next section
 open docs/fig/led-rtl.svg   # view it
 \end{minted}
 
-\texttt{make flash} replaces the program the board came with; \href{factory.pdf}{\emph{The factory program}} shows how to put it back. Without a design, or with one that isn’t there, \name{make} stops and names the designs it has. \texttt{make load led} needs the bitstream, so it first runs steps 1 to 3 if the bitstream is missing or older than \name{led.v} or \name{led.cst}; otherwise it only loads. How the \name{Makefile} does it is \cref{app:make}.
+\texttt{make flash} replaces the program that the board came with. Without a design, or with a design that doesn’t exist, \name{make} stops and lists the designs it has. \texttt{make load led} needs the bitstream. If the bitstream is missing or older than \name{led.v} or \name{led.cst}, \texttt{make load} first runs steps 1 to 3; otherwise, it only loads. \Cref{app:make} explains how the \name{Makefile} does this.
 
 \section*{Compare}\phantomsection\label{sec:compare}
 
-The first numbers for the comparison in the project note. Gowin’s come from its reports in \name{impl/}; the open flow’s from \name{nextpnr}’s output.
+These are the first numbers that compare the two flows. Gowin’s numbers come from its reports in \name{impl/}, and the open flow’s numbers come from the output of \name{nextpnr}.
 
 \begin{center}
 \begin{tabular}{lll}
@@ -200,41 +197,41 @@ The first numbers for the comparison in the project note. Gowin’s come from it
 \end{tabular}
 \end{center}
 
-Same flip-flops, different logic: \name{Yosys} builds \texttt{cnt + 1} from the chip’s adder cells, Gowin from look-up tables alone. Each Fmax comes from its own tool’s timing model, so the two are estimates, not a race; both are far above the board’s 27\,MHz.
+The flip-flops are the same, but the logic differs. \name{Yosys} builds \texttt{cnt + 1} from the chip’s adder cells, and Gowin builds it from look-up tables alone. Each Fmax comes from its own tool’s timing model, so the two numbers are estimates and can’t be compared directly. Both are far above the board’s 27\,MHz.
 
-The RTL drawings differ too. Gowin’s, from Part~1, draws every bit on its own: 24 flip-flops for \texttt{cnt}, 6 for \texttt{led}, each with its own wires, so the shape of the design is lost. \name{Yosys}’s, from \texttt{make rtl led}, keeps each \texttt{reg} whole; it is the next section.
+The RTL drawings differ too. Gowin’s drawing, from Part~1, draws every bit on its own: 24 flip-flops for \texttt{cnt} and 6 for \texttt{led}, each with its own wires, so the shape of the design is lost. The \name{Yosys} drawing, from \texttt{make rtl led}, keeps each \texttt{reg} whole, and the next section shows it.
 
 \section*{The RTL drawing}\phantomsection\label{sec:rtl}
 
 \begin{figure}[H]
   \centering
   \colorbox{white}{\includegraphics[width=0.75\linewidth]{fig/led-rtl.pdf}}
-  \caption{\name{led.v} as \name{Yosys} sees it, drawn by \name{netlistsvg}: one box per register or operation. Red leads to \texttt{led}, blue to \texttt{cnt}; amber is the clock, purple the reset; constants are black.}
+  \caption{\name{led.v} as \name{Yosys} sees it, drawn by \name{netlistsvg}, with one box per register or operation. Red lines lead to \texttt{led}, and blue lines lead to \texttt{cnt}. Amber is the clock, purple is the reset, and constants are black.}
 \end{figure}
 
-It reads as the code, with each \texttt{if} a multiplexer, \texttt{\$mux}: when its select \texttt{S} is 0 it passes the input marked 0, when 1 the input marked 1.
+It reads like the code, and each \texttt{if} becomes a multiplexer, \texttt{\$mux}. When its select \texttt{S} is 0, the multiplexer passes the input marked 0, and when \texttt{S} is 1, it passes the input marked 1.
 
 \begin{itemize}
-  \item \textbf{Two registers}, flip-flops with an asynchronous reset (\name{Yosys}’s \texttt{\$adff}; Gowin’s RTL viewer calls it \texttt{dffr}): the top one is \texttt{led}, the bottom one \texttt{cnt}. Each takes its next value on \texttt{D} and gives its value on \texttt{Q}; \texttt{sys\_clk} goes to \texttt{CLK}, at the triangle, and \texttt{sys\_rst\_n} to \texttt{ARST}, the asynchronous reset, acting at once, without waiting for the clock. On the chip, \texttt{cnt} becomes 24 \texttt{DFFC}, Gowin’s flip-flop with an asynchronous clear to 0; \texttt{led} becomes five \texttt{DFFPE}, with an asynchronous preset to 1, and one \texttt{DFFCE}, cleared to 0: your \texttt{111110}. Their \texttt{E} is an enable, the hold multiplexer below folded into the flip-flop.
-  \item \textbf{The rotation}, top: the two bars split \texttt{led}’s 6 bits and join them again, bits 0--4 moving up to 1--5 and bit 5 to 0. That is \texttt{\{led[4:0], led[5]\}}, done with wires alone.
-  \item \textbf{The step}, top right: $=$ is true when \texttt{cnt} equals 13\,499\,999, one less than half of 27\,000\,000: counting from 0, that is 13\,500\,000 ticks of the 27\,MHz clock, half a second. The multiplexer: \texttt{S} from $=$; 0, \texttt{led} itself, which is \texttt{led <= led}; 1, the rotated \texttt{led}. Its output goes back, over the top, to \texttt{led}’s \texttt{D}. On the chip it becomes the enable of \texttt{led}’s flip-flops.
-  \item \textbf{The counter}, bottom: $<$ compares \texttt{cnt} with the same constant, and $+$ adds 1. The multiplexer: \texttt{S} from $<$, true while the count is below the end; 0, the constant 0; 1, \texttt{cnt + 1}. Its output goes back, under the bottom, to \texttt{cnt}’s \texttt{D}. On the chip it becomes look-up tables in front of the counter’s flip-flops.
+  \item \textbf{Two registers.} Both are flip-flops with an asynchronous reset, which \name{Yosys} calls \texttt{\$adff} and Gowin’s RTL viewer calls \texttt{dffr}. The top one is \texttt{led}, and the bottom one is \texttt{cnt}. Each takes its next value on \texttt{D} and gives its value on \texttt{Q}. \texttt{sys\_clk} goes to \texttt{CLK}, at the triangle. \texttt{sys\_rst\_n} goes to \texttt{ARST}, the asynchronous reset, which acts at once, without waiting for the clock. On the chip, \texttt{cnt} becomes 24 \texttt{DFFC} cells, Gowin’s flip-flop with an asynchronous clear to 0. \texttt{led} becomes five \texttt{DFFPE} cells, which have an asynchronous preset to 1, and one \texttt{DFFCE} cell, cleared to 0. Together they make your \texttt{111110}. Their \texttt{E} input is an enable. It is the hold multiplexer described below, folded into the flip-flop.
+  \item \textbf{The rotation} is at the top. The two bars split the 6 bits of \texttt{led} and join them again, with bits 0 to 4 moving up to 1 to 5, and bit 5 moving to 0. This is \texttt{\{led[4:0], led[5]\}}, done with wires alone.
+  \item \textbf{The step} is at the top right. The $=$ box is true when \texttt{cnt} equals 13\,499\,999, one less than half of 27\,000\,000. Counting from 0, that is 13\,500\,000 ticks of the 27\,MHz clock, which is half a second. The $=$ box drives the multiplexer’s \texttt{S}. The multiplexer’s input 0 is \texttt{led} itself, which is \texttt{led <= led}, and its input 1 is the rotated \texttt{led}. Its output goes back, over the top, to the \texttt{D} of \texttt{led}. On the chip, this multiplexer becomes the enable of the flip-flops of \texttt{led}.
+  \item \textbf{The counter} is at the bottom. The $<$ box compares \texttt{cnt} with the same constant, and $+$ adds 1. The $<$ box drives the multiplexer’s \texttt{S}, which is true while the count is below the end. The multiplexer’s input 0 is the constant 0, and its input 1 is \texttt{cnt + 1}. Its output goes back, under the bottom, to the \texttt{D} of \texttt{cnt}. On the chip, this logic becomes look-up tables in front of the counter’s flip-flops.
 \end{itemize}
 
 \appendix
 \section{Is \name{Use DONE as regular IO} needed?}\label{app:done}
 
-\name{DONE} is the pin the FPGA raises when it has finished loading its bitstream; the box makes it an ordinary I/O pin instead. Sipeed’s LED example says Place \& Route fails without it~\cite{sipeedled}. Yet the old pin reports put \name{DONE} on \name{IOL14[A]}, a pin this design doesn’t use. Every one of those builds had the box ticked, so they can’t tell.
+\name{DONE} is the pin that the FPGA raises when it has finished loading its bitstream. Ticking the box makes it an ordinary I/O pin instead. Sipeed’s LED example says that Place \& Route fails without it~\cite{sipeedled}. Yet the old pin reports put \name{DONE} on \name{IOL14[A]}, a pin that this design doesn’t use. Every one of those builds had the box ticked, so they can’t tell.
 
 \begin{enumerate}
-  \item Gowin, box ticked, as in Part~1: the build passes, and the LEDs run.
-  \item The same, box unticked: does Place \& Route fail? If so, copy the error here, and the pin it names.
-  \item The open flow, as it is: does \name{nextpnr} or \name{gowin\_pack} complain, and do the LEDs run? If it needs the same thing, \texttt{gowin\_pack --done\_as\_gpio} is the equivalent. \textbf{Result:} no complaint, and the LEDs run: the open flow needs nothing.
+  \item With Gowin and the box ticked, as in Part~1, the build passes, and the LEDs run.
+  \item With the box unticked, does Place \& Route fail? If so, copy the error here, and the pin it names.
+  \item With the open flow as it is, does \name{nextpnr} or \name{gowin\_pack} complain, and do the LEDs run? If the open flow needs the same thing, \texttt{gowin\_pack --done\_as\_gpio} is the equivalent. \textbf{Result:} nothing complains, and the LEDs run, so the open flow needs nothing.
 \end{enumerate}
 
 \section{The Makefile}\label{app:make}
 
-\name{make} runs commands to build files, and only those whose inputs have changed. It reads its instructions from the file \name{Makefile}, at the top of the repo. Each \emph{rule} has a target, the file to build; after the colon, its prerequisites, the files it is built from; and below, indented by a tab, the commands that build it. \texttt{make load led} builds the target \texttt{load}, first building whatever it depends on, if missing or older than its own inputs. The file, part by part:
+\name{make} runs commands to build files, and it runs only those whose inputs have changed. It reads its instructions from the file \name{Makefile}, at the top of the repo. Each \emph{rule} has a target, which is the file to build. After the colon come its prerequisites, the files it is built from. Below, indented by a tab, come the commands that build it. \texttt{make load led} builds the target \texttt{load}, after first building whatever it depends on that is missing or older than its own inputs. The file follows, part by part.
 
 \paragraph{Variables.}
 
@@ -245,7 +242,7 @@ FAMILY  = GW1N-9C
 DESIGNS = $(sort $(notdir $(wildcard rtl/*)) $(patsubst ide/%/src,%,$(wildcard ide/*/src)))
 \end{minted}
 
-\texttt{TOP}, the design, comes from the command line, as the next paragraph shows, and \texttt{\$(TOP)} is replaced by it wherever it appears. \texttt{SRC} is the folder with the design’s \name{.v} and \name{.cst}: \name{rtl/<design>/}, where designs live, or else the Gowin project’s \name{src/}. \texttt{wildcard} keeps the folders that exist, \texttt{firstword} the first of them; \texttt{?=} sets \texttt{SRC} only if not given already. For \name{led} it is \name{ide/led/src/}, so the open flow reads the same \name{led.v} and \name{led.cst} as Part~1. \texttt{DEVICE} and \texttt{FAMILY} are the chip, in the forms \name{nextpnr} and \name{gowin\_pack} want. \texttt{DESIGNS} is every design there is: each folder in \name{rtl/}, and each Gowin project in \name{ide/} with a \name{src/}, by name.
+\texttt{TOP}, the design, comes from the command line, as the next paragraph shows, and \texttt{\$(TOP)} is replaced by it wherever it appears. \texttt{SRC} is the folder with the design’s \name{.v} and \name{.cst} files. It is \name{rtl/<design>/}, where designs live, or else the Gowin project’s \name{src/}. \texttt{wildcard} keeps the folders that exist, and \texttt{firstword} takes the first of them. \texttt{?=} sets \texttt{SRC} only if it is not set already. For \name{led}, \texttt{SRC} is \name{ide/led/src/}, so the open flow reads the same \name{led.v} and \name{led.cst} as Part~1. \texttt{DEVICE} and \texttt{FAMILY} name the chip in the forms that \name{nextpnr} and \name{gowin\_pack} want. \texttt{DESIGNS} lists every design by name: each folder in \name{rtl/}, and each Gowin project in \name{ide/} that has a \name{src/}.
 
 \paragraph{The design, and no default.}
 
@@ -273,9 +270,9 @@ endif
 build: build/$(TOP).fs
 \end{minted}
 
-A plain \texttt{make} runs \texttt{help}, not a build. \texttt{MAKECMDGOALS} holds the words typed after \texttt{make}. Every one of them is a goal, a target to make, so in \texttt{make load led} both \texttt{load} and \texttt{led} are: \texttt{TOP} takes the first word that names a design, and \texttt{\$(DESIGNS): ; @:} makes each design a target with nothing to do, \texttt{:} being the shell’s command that does nothing.
+A plain \texttt{make} runs \texttt{help}, not a build. \texttt{MAKECMDGOALS} holds the words typed after \texttt{make}. Every one of them is a goal, a target to make, so in \texttt{make load led} both \texttt{load} and \texttt{led} are goals. \texttt{TOP} takes the first word that names a design. \texttt{\$(DESIGNS): ; @:} makes each design a target with nothing to do, because \texttt{:} is the shell’s command that does nothing.
 
-Then two checks, before anything runs. A word that is neither a command nor a design stops \name{make} with the designs it has. So does a command but \texttt{help} or \texttt{list} without a design. \texttt{make build} is a short name for the bitstream, \name{build/<design>.fs}.
+Then come two checks, before anything runs. A word that is neither a command nor a design stops \name{make}, which then lists the designs it has. A command other than \texttt{help} or \texttt{list} without a design stops it too. \texttt{make build} is a short name for the bitstream, \name{build/<design>.fs}.
 
 \paragraph{The bitstream.}
 
@@ -284,26 +281,26 @@ build/$(TOP).fs: $(SRC)/$(TOP).v $(SRC)/$(TOP).cst
 	mkdir -p build
 \end{minted}
 
-The target is the bitstream, \name{build/led.fs}; its prerequisites are \name{led.v} and \name{led.cst}, so it is rebuilt whenever either changes. The first command makes the \name{build/} folder, if missing. Then three commands, each reading the previous one’s output.
+The target is the bitstream, \name{build/led.fs}. Its prerequisites are \name{led.v} and \name{led.cst}, so it is rebuilt whenever either one changes. The first command makes the \name{build/} folder if it is missing. Three commands follow, each reading the output of the one before.
 
 \begin{minted}{make}
 	yosys -q -p "read_verilog $<; synth_gowin -top $(TOP) -json build/$(TOP).json"
 \end{minted}
 
-Step~1, synthesis, with \texttt{\$<}, the first prerequisite, in place of \name{ide/led/src/led.v}.
+Step~1 is synthesis, with \texttt{\$<}, the first prerequisite, in place of \name{ide/led/src/led.v}.
 
 \begin{minted}{make}
 	nextpnr-himbaechel --json build/$(TOP).json --write build/$(TOP)-pnr.json \
 	    --device $(DEVICE) --vopt family=$(FAMILY) --vopt cst=$(SRC)/$(TOP).cst
 \end{minted}
 
-Step~2, place and route, with the chip from the variables.
+Step~2 is place and route, with the chip taken from the variables.
 
 \begin{minted}{make}
 	gowin_pack -d $(FAMILY) -o $@ build/$(TOP)-pnr.json
 \end{minted}
 
-Step~3, the bitstream, written to the target: \texttt{\$@}, \name{build/led.fs}.
+Step~3 writes the bitstream to the target, \texttt{\$@}, which is \name{build/led.fs}.
 
 \paragraph{Load.}
 
@@ -312,7 +309,7 @@ load: build/$(TOP).fs
 	openFPGALoader -b tangnano9k $<
 \end{minted}
 
-Step~4: \texttt{make load led} first builds the bitstream, if missing or older than \name{led.v} and \name{led.cst}, then loads it into the FPGA’s RAM.
+In step~4, \texttt{make load led} first builds the bitstream if it is missing or older than \name{led.v} and \name{led.cst}, and then loads it into the FPGA’s RAM.
 
 \paragraph{Flash.}
 
@@ -321,7 +318,7 @@ flash: build/$(TOP).fs
 	openFPGALoader -b tangnano9k -f $<
 \end{minted}
 
-The same, with \texttt{-f}: the bitstream goes to the onboard flash instead, and the board starts it at every power-up.
+\texttt{make flash} does the same with \texttt{-f}, so the bitstream goes to the onboard flash instead, and the board starts it at every power-up.
 
 \paragraph{RTL.}
 
@@ -330,19 +327,25 @@ rtl: $(SRC)/$(TOP).v
 	mkdir -p build docs/fig
 \end{minted}
 
-The RTL drawing needs only the Verilog. Its folders first: \name{build/} for the netlist, \name{docs/fig/} for the drawing.
+The RTL drawing needs only the Verilog. The rule first makes its folders: \name{build/} for the netlist, and \name{docs/fig/} for the drawing.
 
 \begin{minted}{make}
 	yosys -q -p "read_verilog $<; prep -top $(TOP); write_json build/$(TOP)-rtl.json"
 \end{minted}
 
-\texttt{prep} stops \name{Yosys} before it maps the design onto Gowin cells, so the netlist holds counters, comparators and registers, as Gowin’s \name{Schematic Viewer} shows them: \name{build/led-rtl.json}.
+\texttt{prep} stops \name{Yosys} before it maps the design onto Gowin cells. The netlist, \name{build/led-rtl.json}, therefore holds counters, comparators, and registers, as Gowin’s \name{Schematic Viewer} shows them.
+
+\begin{minted}{make}
+	diagrams/rtl_ties.py build/$(TOP)-rtl.json
+\end{minted}
+
+\name{netlistsvg} draws a constant as a node of its own, but it merges equal constants into one node, wired across the drawing to every place that uses it. \name{diagrams/rtl\_ties.py} rewrites the netlist so that each use of a constant has its own node, drawn next to that use.
 
 \begin{minted}{make}
 	netlistsvg build/$(TOP)-rtl.json --skin diagrams/rtl-skin.svg -o docs/fig/$(TOP)-rtl.svg
 \end{minted}
 
-\name{netlistsvg} lays the netlist out as an SVG, \name{docs/fig/led-rtl.svg}. The \emph{skin}, \name{diagrams/rtl-skin.svg}, holds the symbol for each kind of cell: netlistsvg’s own, plus a flip-flop with reset, which it lacks.
+\name{netlistsvg} lays the netlist out as an SVG, \name{docs/fig/led-rtl.svg}. The \emph{skin}, \name{diagrams/rtl-skin.svg}, holds the symbol for each kind of cell. It has the symbols of \name{netlistsvg}, plus a flip-flop with reset and a constant node for \name{rtl\_ties.py}.
 
 \begin{minted}{make}
 	diagrams/rtl_colour.py build/$(TOP)-rtl.json docs/fig/$(TOP)-rtl.svg
@@ -357,7 +360,7 @@ list:
 	@printf '%s\n' $(DESIGNS)
 \end{minted}
 
-The designs, one per line: the words a command takes. The \texttt{@} keeps \name{make} from printing the command before running it.
+\texttt{make list} prints the designs, one per line. These are the words that a command takes. The \texttt{@} keeps \name{make} from printing the command before running it.
 
 \paragraph{Help.}
 
@@ -373,7 +376,7 @@ help:
 	printf "$${c}make help$${n}                 this list; also plain make\n"
 \end{minted}
 
-What \texttt{make help} prints: what \texttt{<design>} stands for, on a line of its own, then the commands, the ones that build first. The design is in bold and the commands in cyan, but only on a terminal: \texttt{[ -t 1 ]} is true when the output is one, and \name{tput} gives the codes for bold (\texttt{bold}), cyan (\texttt{setaf 6}) and back to normal (\texttt{sgr0}). Piped to a file, \texttt{b}, \texttt{c} and \texttt{n} stay empty and the text is plain. In a \name{Makefile}, \texttt{\$\$} is a \texttt{\$} for the shell, and each \texttt{\textbackslash} joins the next line into the same shell command, so the variables last to the end.
+This is what \texttt{make help} prints. First comes what \texttt{<design>} stands for, on a line of its own, and then the commands, with the ones that build first. The design is in bold and the commands are in cyan, but only on a terminal. \texttt{[ -t 1 ]} is true when the output is a terminal, and \name{tput} gives the codes for bold (\texttt{bold}), cyan (\texttt{setaf 6}), and back to normal (\texttt{sgr0}). When the output is piped to a file, \texttt{b}, \texttt{c}, and \texttt{n} stay empty, and the text is plain. In a \name{Makefile}, \texttt{\$\$} is a \texttt{\$} for the shell, and each \texttt{\textbackslash} joins the next line into the same shell command, so the variables last to the end.
 
 \paragraph{Actions.}
 
@@ -381,7 +384,7 @@ What \texttt{make help} prints: what \texttt{<design>} stands for, on a line of 
 .PHONY: build load flash rtl list help
 \end{minted}
 
-\texttt{build}, \texttt{load}, \texttt{flash}, \texttt{rtl}, \texttt{list} and \texttt{help} are names of actions, not of files: \texttt{.PHONY} says so, and \name{make} always runs them, even if a file of that name exists.
+\texttt{build}, \texttt{load}, \texttt{flash}, \texttt{rtl}, \texttt{list}, and \texttt{help} are names of actions rather than files. \texttt{.PHONY} declares this, so \name{make} always runs them, even if a file of that name exists.
 
 \begin{thebibliography}{TN9K}
 \bibitem[TN9K]{schematic} Sipeed, \textit{Tang Nano 9K schematic}, \name{Tang\_Nano\_9k\_3672\_Schematic.pdf}, \url{https://dl.sipeed.com/shareURL/TANG/Nano%209K/2_Schematic}.

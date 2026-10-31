@@ -21,6 +21,13 @@ if [ ! data/debounce.dat -nt ../diagrams/debounce.ipynb ]; then
         { cat build/debounce-notebook.log; exit 1; }
 fi
 
+# The testbenches' printouts, data/walk_tb.txt and data/hello_tb.txt, which their chapters show.
+mkdir -p ../build data
+iverilog -g2012 -o ../build/walk_tb ../sim/walk_tb.v ../rtl/walk/walk.v ../rtl/walkback/walkback.v
+vvp -n ../build/walk_tb | grep -v '\$finish' > data/walk_tb.txt
+iverilog -g2012 -o ../build/hello_tb ../sim/hello_tb.v ../rtl/hello/hello.v
+vvp -n ../build/hello_tb | grep -v '\$finish' > data/hello_tb.txt
+
 ../diagrams/debounce_circuit.py >/dev/null
 ../diagrams/kicad_sheet.py ../kicad/74HC595-manual-test/74HC595-manual-test.kicad_sch fig >/dev/null
 make -s -C .. rtl led       # fig/led-rtl.svg, the RTL drawing of the running LEDs

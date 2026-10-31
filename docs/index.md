@@ -13,7 +13,7 @@ A Verilog UART sends ‘Hello world’, read back by the logic analyser’s deco
 [Stage 0c: one 74HC595 by hand](build/595-by-hand.pdf)  
 Three buttons stand in for the FPGA: shift a byte in bit by bit, then latch it onto eight LEDs.
 
-[Stage 1a: a walking bit on the 74HC595](build/595-walking-bit.pdf)  
+[Stage 1a: a walking bit on the 74HC595](build/595-by-fpga.pdf)  
 The FPGA takes the buttons’ place: one lit LED walks forward a bit at a time, then backward a byte at a time.
 
 ## The board
