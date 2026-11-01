@@ -11,11 +11,10 @@
 \RequirePackage{tikz-timing}  % timing diagrams, with sloped edges
 
 % Links, URLs and citations in one strong cyan: hyperref's default green barely shows on a white
-% screen, and blue reads as black text. Every PDF also names its project, which the review tooling reads.
+% screen, and blue reads as black text.
 \definecolor{link}{HTML}{0099CC}
 \AtBeginDocument{\@ifpackageloaded{hyperref}{%
-  \hypersetup{linkcolor=link, urlcolor=link, filecolor=link, citecolor=link,
-    pdfinfo={Project=altair-8800-tang-nano-9k}}}{}}
+  \hypersetup{linkcolor=link, urlcolor=link, filecolor=link, citecolor=link}}{}}
 
 % Names of things (chips, pins, files, folders, programs) in sans; \texttt only for literal text.
 % The sans underscore is a third wider than a letter; inside \name it is as wide as a space.
