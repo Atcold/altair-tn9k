@@ -28,7 +28,7 @@
   \centering
   \begin{tikzpicture}[box/.style={draw, thick, align=center, font=\small},
       wire/.style={->}, lbl/.style={font=\scriptsize\sffamily, above, inner sep=1.5pt}]
-    \node[box, minimum width=2.8cm, minimum height=1.5cm] (fpga) at (0,0) {Tang Nano 9K\\[0.2em]\scriptsize sends \texttt{Hello world}};
+    \node[box, minimum width=2.8cm, minimum height=1.5cm] (fpga) at (0,0) {\name{Tang Nano 9K}\\[0.2em]\scriptsize sends \texttt{Hello world}};
     \node[box, minimum width=2.2cm, minimum height=1.5cm] (la) at (5,0) {logic\\analyser};
     \node[box, minimum width=2.4cm, minimum height=3.4cm] (mac) at (9.4,0.95) {Mac\\[0.6em]\scriptsize Logic~2\\[0.2em]\scriptsize and a terminal};
     \draw[wire] (1.4,0.3) -- node[lbl] {CH0: the line} (3.9,0.3);
@@ -55,7 +55,7 @@ The logic analyser is the tool that shows what travels on a wire. This lesson co
       title/.style={font=\small\bfseries, inner sep=3pt}]
     % the development board, and the FPGA on it
     \draw[black!45, rounded corners=3pt] (-3.6,-2.5) rectangle (5.6,2.7);
-    \node[title, anchor=south west] at (-3.6,-2.5) {Tang Nano 9K};
+    \node[title, anchor=south west] at (-3.6,-2.5) {\name{Tang Nano 9K}};
     \draw[thick] (-1.8,-1.7) rectangle (1.8,2.2);
     \node[title, anchor=north] at (0,2.2) {\name{GW1NR-9}};
     \node[port, anchor=west] at (-1.75,0) {sys\_clk};
