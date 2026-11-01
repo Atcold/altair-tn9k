@@ -18,6 +18,9 @@ The FPGA takes the buttons’ place: one lit LED walks forward a bit at a time, 
 
 ## The board
 
+[What is on the board](build/the-board.pdf)  
+The board’s parts and the documents that describe them, the BL702 microcontroller behind the USB-C port, and how a USB keyboard could reach the FPGA.
+
 [The factory program](build/factory.pdf)  
 What the board runs out of the box, why it can’t be copied, and the design that puts it back after a `make flash`.
 
