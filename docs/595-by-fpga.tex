@@ -276,25 +276,25 @@ This appendix goes through \name{sim/walk\_tb.v} part by part. A testbench is Ve
 
 \subsection*{Clock and the two designs}
 
-\inputminted[firstline=7, lastline=18]{verilog}{../sim/walk_tb.v}
+\inputminted[firstline=7, lastline=20]{verilog}{../sim/walk_tb.v}
 
 The clock flips every 18.5\,ns, so a full cycle takes 37\,ns, which is 27\,MHz. Each design is placed with \texttt{\#(.TICK(TICK))}, which replaces its \texttt{TICK} parameter, so a tick lasts 1000 cycles instead of 13.5 million. Nothing else in the designs changes.
 
 \subsection*{The \name{595} model}
 
-\inputminted[firstline=20, lastline=27]{verilog}{../sim/walk_tb.v}
+\inputminted[firstline=22, lastline=29]{verilog}{../sim/walk_tb.v}
 
 Each walk gets its own chip. \texttt{f\_shift} is the shift register. On the rising edge of \name{SRCLK}, every bit moves one place towards \name{QH}, and \name{SER} comes in at \name{QA}, bit 0. \texttt{f\_q} is the output register, which holds the eight LEDs. On the rising edge of \name{RCLK}, it copies the shift register. This model behaves like the chip at flip-flop level, without its timing.
 
 \subsection*{The gaps}
 
-\inputminted[firstline=59, lastline=82]{verilog}{../sim/walk_tb.v}
+\inputminted[firstline=62, lastline=85]{verilog}{../sim/walk_tb.v}
 
 The model accepts any timing, so the testbench checks the timing separately. \texttt{cycle} counts clock cycles from the start. Each line remembers the cycle of its last change. At each edge that the datasheet limits, the testbench compares the current cycle with that one and keeps the shortest gap seen. There are three such gaps: from a change of \name{SER} to the rising edge of \name{SRCLK} (row 1), from the rising edge of \name{SRCLK} to the rising edge of \name{RCLK} (row 2), and between two changes of \name{SRCLK} or of \name{RCLK}, which is how long the line stays high or low (row 3). The first change of each line, from unknown to 0 at time 0, is not a pulse, and the testbench skips it.
 
 \subsection*{Printing}
 
-\inputminted[firstline=35, lastline=55]{verilog}{../sim/walk_tb.v}
+\inputminted[firstline=37, lastline=58]{verilog}{../sim/walk_tb.v}
 
 \texttt{leds} turns the eight outputs into eight characters, \name{QA} first. The \texttt{initial} block prints the power-up state. Then it waits one tick at a time and prints both walks side by side. After sixteen ticks, which are two full walks, it prints the shortest gaps and stops.
 

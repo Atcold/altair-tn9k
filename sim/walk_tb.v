@@ -14,8 +14,10 @@ reg sys_clk = 0;
 always #18.5 sys_clk = ~sys_clk;  // 27 MHz: a cycle every 37 ns
 
 wire f_ser, f_srclk, f_rclk, b_ser, b_srclk, b_rclk;
-walk     #(.TICK(TICK)) forward  (.sys_clk(sys_clk), .ser(f_ser), .srclk(f_srclk), .rclk(f_rclk));
-walkback #(.TICK(TICK)) backward (.sys_clk(sys_clk), .ser(b_ser), .srclk(b_srclk), .rclk(b_rclk));
+walk     #(.TICK(TICK)) forward  (.sys_clk(sys_clk),
+                                   .ser(f_ser), .srclk(f_srclk), .rclk(f_rclk));
+walkback #(.TICK(TICK)) backward (.sys_clk(sys_clk),
+                                   .ser(b_ser), .srclk(b_srclk), .rclk(b_rclk));
 
 // The 595: SRCLK's rising edge shifts SER in at QA's end, RCLK's copies the shift register
 // to the outputs. Bit 0 is QA. Both start with a made-up power-up pattern.
@@ -47,7 +49,8 @@ initial begin
         repeat (TICK) @(posedge sys_clk);
         $display("%3d   %s  %s", tick, leds(f_q), leds(b_q));
     end
-    $display("%-26s%14s%15s%13s", "shortest gaps, in cycles", "SER to SRCLK", "SRCLK to RCLK", "high or low");
+    $display("%-26s%14s%15s%13s", "shortest gaps, in cycles",
+             "SER to SRCLK", "SRCLK to RCLK", "high or low");
     $display("%-26s%14d%15d%13d", "  needed (rows 1-3)", 4, 3, 3);
     $display("%-26s%14d%15d%13d", "  forward", f_gaps.setup, f_gaps.latch, f_gaps.pulse);
     $display("%-26s%14d%15d%13d", "  backward", b_gaps.setup, b_gaps.latch, b_gaps.pulse);
