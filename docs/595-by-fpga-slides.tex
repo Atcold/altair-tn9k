@@ -1,0 +1,117 @@
+% Slides for 595-by-fpga.tex: its diagrams and tables, under its headings.
+% Build with ./build.sh 595-by-fpga-slides.tex (latexmk; settings in .latexmkrc).
+
+\documentclass[aspectratio=169,11pt]{beamer}
+
+\usepackage{deck}
+
+\begin{document}
+
+\begin{frame}{\huge A walking bit on the \name{74HC595}}
+  \begin{fig}
+  \begin{tikzpicture}[box/.style={draw, thick, minimum height=1.6cm, align=center, font=\small},
+      wire/.style={->}, lbl/.style={font=\scriptsize\sffamily, above, inner sep=1.5pt}]
+    \node[box, minimum width=2.6cm] (fpga) {\name{Tang Nano 9K}\\[0.2em]\scriptsize 27\,MHz clock};
+    \node[box, minimum width=2.2cm, right=2.6cm of fpga] (sr) {\name{74HC595}};
+    \node[box, draw=red, text=red, minimum width=1.6cm, right=1.6cm of sr] (leds) {8 LEDs};
+    \draw[wire] ([yshift=0.45cm]fpga.east) -- node[lbl] {SER} ([yshift=0.45cm]sr.west);
+    \draw[wire] (fpga.east) -- node[lbl] {SRCLK} (sr.west);
+    \draw[wire] ([yshift=-0.45cm]fpga.east) -- node[lbl] {RCLK} ([yshift=-0.45cm]sr.west);
+    \draw[wire] (sr.east) -- node[lbl] {QA--QH} (leds.west);
+  \end{tikzpicture}
+  \end{fig}
+\end{frame}
+
+\begin{frame}{The FPGA’s pins}
+  \begin{fig}
+  \vmid{\begin{tikzpicture}[
+      port/.style={font=\footnotesize\ttfamily},
+      pin/.style={font=\scriptsize, above, inner sep=1.5pt},
+      blk/.style={draw, thick, align=center, font=\small, minimum height=0.9cm},
+      hdr/.style={draw, fill=white, circle, inner sep=1.6pt},
+      title/.style={font=\small\bfseries, inner sep=3pt}]
+    % the development board, and the FPGA on it
+    \draw[black!45, rounded corners=3pt] (-3.6,-2.9) rectangle (3.4,1.9);
+    \node[title, anchor=south west] at (-3.6,-2.9) {\name{Tang Nano 9K}};
+    \draw[thick] (-1.8,-1.3) rectangle (1.8,1.4);
+    \node[title, anchor=north] at (0,1.4) {\name{GW1NR-9}};
+    \node[port, anchor=west] at (-1.75,-0.3) {sys\_clk};
+    \node[port, anchor=east] at (1.75,0.3) {ser};
+    \node[port, anchor=east] at (1.75,-0.3) {srclk};
+    \node[port, anchor=east] at (1.75,-0.9) {rclk};
+    \pic at (-2.9,-0.3) {crystal};
+    \node[font=\scriptsize, below] at (-2.9,-0.7) {27\,MHz};
+    \draw[->] (-2.6,-0.3) -- (-1.8,-0.3);
+    \node[pin] at (-2.1,-0.3) {52};
+    % FPGA pins, header pins, and the 595's pins
+    \draw[thick] (5.8,-1.4) rectangle (7.8,0.9);
+    \node[font=\small] at (6.8,1.15) {\name{74HC595}};
+    \foreach \y/\f/\h/\c/\n in {0.3/25/L5/14/SER, -0.3/26/L6/11/SRCLK, -0.9/27/L7/12/RCLK} {
+      \draw[->] (1.8,\y) -- (5.8,\y);
+      \node[pin] at (2.1,\y) {\f};
+      \node[hdr] at (3.4,\y) {};
+      \node[pin, anchor=south west] at (3.5,\y) {\name{\h}};
+      \node[pin] at (5.5,\y) {\c};
+      \node[font=\footnotesize, anchor=west] at (5.85,\y) {\name{\n}};
+    }
+    % the breadboard's rails
+    \foreach \y/\h/\r in {-1.9/R24/{$+$ rail, 3.3\,V}, -2.5/R23/{$-$ rail, \name{GND}}} {
+      \draw (3.4,\y) -- (5.6,\y);
+      \node[anchor=west, font=\small, inner sep=0pt] at (5.8,\y) {\r};
+      \node[hdr] at (3.4,\y) {};
+      \node[pin, anchor=south west] at (3.5,\y) {\name{\h}};
+    }
+  \end{tikzpicture}}\quad
+  \vmid{\boardpins{l/5/L5/-1, l/6/L6/0, l/7/L7/1, r/23/R23/-0.5, r/24/R24/0.5}}
+  \end{fig}
+\end{frame}
+
+\begin{frame}{Timing}
+  \begin{center}
+  \begin{tabular}{r>{\raggedright\arraybackslash}p{7.4cm}rrr}
+    \toprule
+    & & \multicolumn{3}{c}{Minimum (ns) at} \\
+    \cmidrule(l){3-5}
+    & Requirement & 2\,V & 4.5\,V & 6\,V \\
+    \midrule
+    1 & serial input (\name{SER}) steady before the shift-register clock (\name{SRCLK}) rises & 125 & 25 & 21 \\
+    2 & shift-register clock (\name{SRCLK}) rises before the register clock (\name{RCLK}) rises & 94 & 19 & 16 \\
+    3 & \name{SRCLK} or \name{RCLK} high, or low & 100 & 20 & 17 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \source{\name{SN74HC595} datasheet, SCLS041J, §6.6, p.~6}
+\end{frame}
+
+\begin{frame}{The same times in clock cycles}
+  \begin{center}
+  \begin{tabular}{rlrr}
+    \toprule
+    & Requirement & Minimum (ns) & Minimum (cycles) \\
+    \midrule
+    1 & \name{SER} steady before \name{SRCLK} rises & 125 & 4 \\
+    2 & \name{SRCLK} rises before \name{RCLK} rises & 94 & 3 \\
+    3 & \name{SRCLK} or \name{RCLK} high, or low & 100 & 3 \\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+\end{frame}
+
+\begin{frame}{One forward tick}
+  \begin{fig}
+  \begin{tikztimingtable}[timing/slope=0.1, xscale=1.2, yscale=1.4, timing/rowdist=3, timing/name/.style={font=\small\sffamily}]
+    SER   & L 11H \\
+    SRCLK & 4L 3H 5L \\
+    RCLK  & 7L 3H 2L \\
+  \extracode
+    \vertlines[black!20]{1.05,4.05,7.05,10.05}  % through each edge's midpoint: the slope is 0.1
+    \foreach \x/\c in {1.05/0, 4.05/27, 7.05/54, 10.05/81} \node[font=\scriptsize, below] at (\x,-6.3) {\c};
+    \node[font=\scriptsize, anchor=west] at (12.2,-6.55) {cycles};
+    \draw[decorate, decoration={brace, amplitude=4pt}] (1.05,1.25) -- node[above=4pt, font=\scriptsize] {27 $\geq$ 4 (row 1)} (4.05,1.25);
+    \draw[decorate, decoration={brace, amplitude=4pt}] (4.05,-1.75) -- node[above=4pt, font=\scriptsize] {27 $\geq$ 3 (rows 2, 3)} (7.05,-1.75);
+    \draw[decorate, decoration={brace, amplitude=4pt}] (7.05,-4.75) -- node[above=4pt, font=\scriptsize] {27 $\geq$ 3 (row 3)} (10.05,-4.75);
+  \end{tikztimingtable}
+  \end{fig}
+\end{frame}
+
+\end{document}
