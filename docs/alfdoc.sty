@@ -53,6 +53,7 @@
 % repo) keeps its plain pages and an empty table.
 \RequirePackage{booktabs}
 \RequirePackage{array}
+\RequirePackage{tabularx}
 \newcommand{\alfdoc@revision}[4]{\gdef\alfdoc@revnum{#1}%
   \gdef\revisionline{Revision #1\ifnum#4=1\ draft\fi\ \textperiodcentered\ #2%
     \if\relax\detokenize{#3}\relax\else\ \textperiodcentered\ \ifnum#4=1 after \fi\texttt{#3}\fi}}
@@ -76,12 +77,12 @@
   \fancypagestyle{plain}{\fancyhf{}
     \fancyhead[R]{\scriptsize\color{black!25}\revisionline}
     \renewcommand{\headrulewidth}{0pt}}
-  \AtBeginDocument{\pagestyle{empty}}}{}
+  \AtBeginDocument{\pagestyle{empty}\thispagestyle{plain}}}{}  % the first page, with or without \maketitle
 % Review: “The dates in the table are all misaligned.” (weekday, day, month: three columns)
 \newcommand{\revisiontable}{\section*{Revisions}
-  {\footnotesize\begin{tabular}{@{}r c@{~}r@{~}c l >{\raggedright\arraybackslash}p{0.6\textwidth}@{}}
+  {\footnotesize\begin{tabularx}{\textwidth}{@{}r c@{~}r@{~}c l >{\raggedright\arraybackslash}X@{}}
     \toprule & \multicolumn{3}{l}{Date} & Commit & Change\\ \midrule \alfdoc@rows \bottomrule
-  \end{tabular}\par}}
+  \end{tabularx}\par}}  % full text width: the Change column takes the rest
 
 % This revision's changes, one item per numbered hand, in the same order: a box under the title,
 % filled from the hands' long notes. It appears by itself after \maketitle while \reviewtrue and
