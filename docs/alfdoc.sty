@@ -29,13 +29,23 @@
     \node[anchor=north east, inner sep=0pt, text width=1.7cm, align=right,
       font=\tiny\itshape\color{red!85!black}] at ([yshift=-1.5pt]here@h.south east) {#1};
   \fi}\fi}
-% \here[what changed]: the optional note goes under the hand, in tiny italic.
-% Keeps the space a control word would swallow (".\here The"), but adds none at a
-% paragraph start or after a space ("the \here word").
-\newcommand{\here}[1][]{%
+% \here[short][long]: the short note goes under the hand, in tiny italic, and the long one, which
+% defaults to the short, goes into the changes box under the title. Keeps the space a control word
+% would swallow (".\here The"), but adds none at a paragraph start or after a space ("the \here word").
+% Review: “You have the short title (for the margin) and the long one (for the table). And that is
+% automatically added, when \reviewtrue.”
+\newcommand{\here}[1][]{\@ifnextchar[{\here@both{#1}}{\here@both{#1}[#1]}}
+\def\here@both#1[#2]{%
   \ifvmode\leavevmode\let\here@next\ignorespaces
   \else\ifdim\lastskip>\z@\let\here@next\ignorespaces\else\let\here@next\xspace\fi\fi
-  \here@hand{#1}\here@next}
+  \here@hand{#1}\ifreview\protected@write\@auxout{}{\string\alfdoc@change{\detokenize{#2}}}\fi
+  \here@next}
+% The changes of this revision, read back from the .aux file on the next run
+\newcommand{\alfdoc@changelist}{}
+\newcommand{\alfdoc@change}[1]{\ifalfdoc@collect\g@addto@macro\alfdoc@changelist{\item #1}\fi}
+\newif\ifalfdoc@collect
+\alfdoc@collecttrue
+\AtBeginDocument{\alfdoc@collectfalse}  % the .aux is read again at the end: collect only once
 
 % Revision line in the title page's header, and no page numbers (a cropping reader then joins
 % pages without a gap), and a revision table for the end (\revisiontable).
@@ -73,16 +83,21 @@
     \toprule & \multicolumn{3}{l}{Date} & Commit & Change\\ \midrule \alfdoc@rows \bottomrule
   \end{tabular}\par}}
 
-% This revision's changes, one \item per numbered hand, in the same order; a box under the title.
+% This revision's changes, one item per numbered hand, in the same order: a box under the title,
+% filled from the hands' long notes. It appears by itself after \maketitle while \reviewtrue and
+% there is at least one hand.
 \newtcolorbox{alfdoc@changesbox}{enhanced jigsaw, opacityback=0, colframe=red!85!black, boxrule=0.6pt, arc=2pt,
   opacitybacktitle=0, coltitle=red!85!black, fonttitle=\small\bfseries,
-  title={Changes in revision \@ifundefined{alfdoc@revnum}{}{\alfdoc@revnum}}}
-\newenvironment{changes}{\ifreview\begin{alfdoc@changesbox}\small
+  title={\@ifundefined{alfdoc@revnum}{Changes}{Changes in revision \alfdoc@revnum}}}
+\newcommand{\alfdoc@changes}{\ifreview\ifx\alfdoc@changelist\@empty\else
+  \begin{alfdoc@changesbox}\small
   \begin{list}{\textbf{\color{red!85!black}\arabic{enumi}}}{\usecounter{enumi}%
-    \setlength{\leftmargin}{1.5em}\setlength{\itemsep}{0pt}\setlength{\topsep}{0pt}}}
-  {\end{list}\smallskip
+    \setlength{\leftmargin}{1.5em}\setlength{\itemsep}{0pt}\setlength{\topsep}{0pt}}
+  \alfdoc@changelist
+  \end{list}\smallskip
   Earlier revisions are in the table at the end, and each round's details in the project note's log.
-  \end{alfdoc@changesbox}\fi}
+  \end{alfdoc@changesbox}\fi\fi}
+\AddToHook{cmd/maketitle/after}{\alfdoc@changes}
 
 % Diff marks: + added, ± edited, − removed, in the left margin level with the line, each with an
 % optional tiny note. One mark per kind of edit, not one per change.
